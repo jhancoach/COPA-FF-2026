@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MUNDIAL 2025 - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Rajdhani:wght@500;600;700;800&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #050505;
+        /* Updated gradients to Gold/Dark Orange/Black */
+        background-image: 
+          radial-gradient(circle at 50% 0%, #422006 0%, transparent 45%),
+          radial-gradient(circle at 85% 10%, #854d0e 0%, transparent 25%);
+        background-attachment: fixed;
+        color: #F3F4F6;
+        overflow-x: hidden;
+      }
+
+      h1, h2, h3, h4, h5, h6, .font-display {
+        font-family: 'Rajdhani', sans-serif;
+      }
+
+      /* Custom Scrollbar - Gold Theme */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #09090b; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #ca8a04; /* Yellow-600 */
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #eab308; /* Yellow-500 */
+      }
+
+      /* Utility for Glassmorphism */
+      .glass {
+        background: rgba(10, 10, 10, 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(234, 179, 8, 0.15); /* Yellow border hint */
+      }
+
+      /* Animations */
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+      }
+      .animate-float {
+        animation: float 4s ease-in-out infinite;
+      }
+
+      @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 0 15px rgba(234, 179, 8, 0.2); }
+        50% { box-shadow: 0 0 30px rgba(234, 179, 8, 0.5); }
+      }
+      .animate-pulse-glow {
+        animation: pulse-glow 3s infinite;
+      }
+
+      /* PRINT / PDF STYLES */
+      @media print {
+        @page {
+          size: landscape;
+          margin: 0.5cm;
+        }
+        
+        body {
+          background: white !important;
+          color: black !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        /* Hide UI elements */
+        nav, .no-print, button:not(.print-show), ::-webkit-scrollbar {
+          display: none !important;
+        }
+
+        /* Reset Layout containers */
+        #root, main {
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+        }
+
+        /* Turn dark cards into white report sections */
+        .glass, .bg-\[\#1E1E1E\], .bg-\[\#2D2D2D\], .bg-\[\#262626\], .bg-gray-800, .bg-gray-900 {
+          background-color: #ffffff !important;
+          border: 1px solid #e5e7eb !important; 
+          box-shadow: none !important;
+          color: black !important;
+          backdrop-filter: none !important;
+        }
+
+        /* Adjust Text Colors for Ink Saving */
+        .text-white, .text-gray-100, .text-gray-200, .text-gray-300 {
+          color: #000000 !important;
+        }
+        .text-gray-400, .text-gray-500 {
+          color: #4b5563 !important; 
+        }
+        
+        .text-purple-400, .text-purple-500, .text-yellow-400, .text-yellow-500 { color: #000 !important; font-weight: bold; }
+        .bg-purple-600, .bg-yellow-500 { background-color: #000 !important; color: white !important; }
+
+        table {
+          font-size: 10px !important;
+          width: 100% !important;
+        }
+        th, td {
+          border-bottom: 1px solid #ddd !important;
+          padding: 4px !important;
+        }
+        
+        .page-break {
+          page-break-before: always;
+        }
+        
+        body::before {
+          content: "MUNDIAL 2025 - Relatório Competitivo";
+          display: block;
+          text-align: center;
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 20px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 10px;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.10.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.1/",
+    "recharts": "https://esm.sh/recharts@^3.5.1",
+    "lucide-react": "https://esm.sh/lucide-react@^0.559.0",
+    "react/": "https://esm.sh/react@^19.2.1/",
+    "react": "https://esm.sh/react@^19.2.1"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+  </body>
+</html>
