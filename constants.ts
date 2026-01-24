@@ -17,15 +17,16 @@ export const CSV_URLS = {
 };
 
 export const DEFAULT_CONFIG = {
-  titlePart1: "MUNDIAL",
-  titlePart2: "2025",
-  subtitle: "Global Finals"
+  titlePart1: "COPA FF",
+  titlePart2: "2026",
+  subtitle: "Elite Competitiva"
 };
 
 export const THEME_COLORS = {
-  background: "#1E1E1E",
-  card: "#2D2D2D",
-  primary: "#EAB308", // Yellow-500
-  secondary: "#F97316", // Orange-500
+  background: "#0a050a",
+  accentPurple: "#4b164c",
+  primary: "#facc15", // Yellow/Gold
+  secondary: "#f97316", // Orange
+  tertiary: "#701a75", // Deep Purple
   text: "#F3F4F6"
 };
