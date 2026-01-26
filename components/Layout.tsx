@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Shield, Skull, RefreshCw, Menu, X, Printer, Download, Trophy, Settings } from 'lucide-react';
-import { CSV_URLS } from '../constants';
+import { LayoutDashboard, Users, Shield, Skull, RefreshCw, Menu, X, Printer, Download, Settings } from 'lucide-react';
+import { CSV_URLS, LOGO_URL } from '../constants';
 import { AppConfig } from '../types';
 
 interface LayoutProps {
@@ -27,7 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onRefresh, loading, lastUpdat
   const handleExportCSV = () => {
       const link = document.createElement('a');
       link.href = CSV_URLS.fDetalhes;
-      link.setAttribute('download', 'CopaFF2026_Dados.csv');
+      link.setAttribute('download', 'Mundial2025_Dados.csv');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -40,12 +41,12 @@ const Layout: React.FC<LayoutProps> = ({ children, onRefresh, loading, lastUpdat
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             
-            {/* Logo Dinâmica */}
-            <div className="flex items-center gap-4 group cursor-default">
+            {/* Logo Dinâmica Oficial */}
+            <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.location.hash = '/'}>
               <div className="relative">
                  <div className="absolute inset-0 bg-[#f97316] rounded-xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
-                 <div className="relative bg-gradient-to-br from-[#2d0a31] to-black p-2.5 rounded-xl border border-[#f97316]/30">
-                    <Trophy className="text-[#facc15]" size={26} />
+                 <div className="relative bg-gradient-to-br from-[#2d0a31] to-black p-0.5 rounded-xl border border-[#f97316]/30 overflow-hidden w-16 h-16 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.2)]">
+                    <img src={LOGO_URL} alt="MUNDIAL 2025 Logo" className="w-full h-full object-contain scale-110" />
                  </div>
               </div>
               <div className="flex flex-col">
@@ -59,7 +60,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onRefresh, loading, lastUpdat
               </div>
             </div>
 
-            {/* Desktop Nav - Botões com efeito gradiente roxo/ouro */}
+            {/* Desktop Nav */}
             <div className="hidden md:flex items-center space-x-2 bg-black/50 p-1.5 rounded-xl border border-white/5 backdrop-blur-sm">
               {navItems.map((item) => (
                 <NavLink
@@ -87,11 +88,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onRefresh, loading, lastUpdat
               </div>
 
               <div className="flex items-center bg-black/60 rounded-xl border border-white/10 p-1">
-                  <button onClick={handlePrint} className="p-2.5 text-gray-400 hover:text-[#facc15] hover:bg-white/5 rounded-lg transition-colors"><Printer size={18} /></button>
+                  <button onClick={handlePrint} title="Imprimir" className="p-2.5 text-gray-400 hover:text-[#facc15] hover:bg-white/5 rounded-lg transition-colors"><Printer size={18} /></button>
                   <div className="w-px h-4 bg-white/10 mx-1"></div>
-                  <button onClick={handleExportCSV} className="p-2.5 text-gray-400 hover:text-[#facc15] hover:bg-white/5 rounded-lg transition-colors"><Download size={18} /></button>
+                  <button onClick={handleExportCSV} title="Exportar CSV" className="p-2.5 text-gray-400 hover:text-[#facc15] hover:bg-white/5 rounded-lg transition-colors"><Download size={18} /></button>
                   <div className="w-px h-4 bg-white/10 mx-1"></div>
-                  <NavLink to="/admin" className={({ isActive }) => `p-2.5 rounded-lg transition-colors ${isActive ? 'text-[#facc15] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Settings size={18} /></NavLink>
+                  <NavLink to="/admin" title="Configurações" className={({ isActive }) => `p-2.5 rounded-lg transition-colors ${isActive ? 'text-[#facc15] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Settings size={18} /></NavLink>
               </div>
 
               <button
@@ -144,7 +145,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onRefresh, loading, lastUpdat
       
       <footer className="border-t border-white/5 py-6 mt-8 bg-black/40 no-print">
         <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-xs font-mono flex flex-col items-center gap-2">
-            <span>&copy; 2026 {config.titlePart1} {config.titlePart2} OFFICIAL DASHBOARD.</span>
+            <span>&copy; 2025 {config.titlePart1} {config.titlePart2} OFFICIAL DASHBOARD.</span>
             <div className="flex gap-2 text-[10px] text-gray-600 uppercase">
                 <span className="text-[#f97316]">Domínio Total</span>
                 <span>•</span>

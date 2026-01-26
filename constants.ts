@@ -16,10 +16,12 @@ export const CSV_URLS = {
   dItem: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1365432121"
 };
 
+export const LOGO_URL = "https://i.ibb.co/V0sb4bxX/image.png";
+
 export const DEFAULT_CONFIG = {
-  titlePart1: "COPA FF",
-  titlePart2: "2026",
-  subtitle: "Elite Competitiva"
+  titlePart1: "MUNDIAL",
+  titlePart2: "2025",
+  subtitle: "Elite Competitiva Free Fire"
 };
 
 export const THEME_COLORS = {
