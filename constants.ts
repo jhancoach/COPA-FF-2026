@@ -1,11 +1,11 @@
 
 export const CSV_URLS = {
-  fDetalhes: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1560720549",
+  fDetalhes: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=1560720549&single=true&output=csv",
   fPersonagens: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1045005047",
-  fPlayersDados: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1193858435",
-  fKillFeed: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1663256849",
-  fKilldia: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1914375197",
-  dTime: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=2039387100",
+  fPlayersDados: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=1193858435&single=true&output=csv",
+  fKillFeed: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=1663256849&single=true&output=csv",
+  fKilldia: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=1914375197&single=true&output=csv",
+  dTime: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=2039387100&single=true&output=csv",
   dArma: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1006087866",
   dSafe: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=998190335",
   dHab1: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=602850523",
