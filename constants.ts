@@ -19,8 +19,8 @@ export const CSV_URLS = {
 export const LOGO_URL = "https://i.ibb.co/V0sb4bxX/image.png";
 
 export const DEFAULT_CONFIG = {
-  titlePart1: "MUNDIAL",
-  titlePart2: "2025",
+  titlePart1: "COPA FF",
+  titlePart2: "2026",
   subtitle: "Elite Competitiva Free Fire"
 };
 

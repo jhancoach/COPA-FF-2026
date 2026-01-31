@@ -9,8 +9,8 @@ interface SplashScreenProps {
 }
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ config }) => {
-  const title1 = config?.titlePart1 || "MUNDIAL";
-  const title2 = config?.titlePart2 || "2025";
+  const title1 = config?.titlePart1 || "COPA FF";
+  const title2 = config?.titlePart2 || "2026";
   const sub = config?.subtitle || "Elite Competitiva";
 
   return (
@@ -55,7 +55,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ config }) => {
       
       <div className="mt-6 text-[11px] text-gray-500 font-mono tracking-widest uppercase opacity-80 flex items-center gap-2">
         <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping"></span>
-        Sincronizando Banco de Dados Mundial...
+        Sincronizando Banco de Dados Copa FF...
       </div>
 
       <style>{`
