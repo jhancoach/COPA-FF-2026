@@ -5,7 +5,8 @@ export interface PlayerData {
   S: string;      
   Abates: string;
   MAPA?: string;
-  RD?: string;
+  RD?: string; // Rodada
+  Q?: string;  // Queda
 }
 
 export interface KillFeed {
@@ -14,7 +15,8 @@ export interface KillFeed {
   ARMA: string;
   CONFRONTO: string;
   MAPA: string;
-  RD: string;
+  RD: string; // Rodada
+  Q: string;  // Queda
   SAFE: string;
   Tempo?: string;
 }
@@ -41,10 +43,10 @@ export interface CharacterData {
   Hab4: string;
   Pet: string;
   Item: string;
-  Rd: string;        // Added
-  Confronto: string; // Added
-  Mapa: string;      // Added
-  S: string;         // Added
+  Rd: string;        
+  Confronto: string; 
+  Mapa: string;      
+  S: string;         
 }
 
 export interface TeamReference {

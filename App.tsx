@@ -34,19 +34,23 @@ const App: React.FC = () => {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [showSplash, setShowSplash] = useState(true);
 
-  const loadData = useCallback(async () => {
-    // 1. Refresh Config
-    setConfig(getAppConfig());
+  // Filtros Globais para consistência entre abas
+  const [globalFilters, setGlobalFilters] = useState({
+    team: 'All', 
+    players: [] as string[], 
+    weapon: 'All', 
+    safe: 'All', 
+    map: 'All', 
+    rodada: 'All', 
+    queda: 'All', 
+    confrontation: 'All'
+  });
 
+  const loadData = useCallback(async () => {
+    setConfig(getAppConfig());
     setData(prev => ({ ...prev, loading: true }));
-    
-    // 2. Fetch Data
     const newData = await fetchDashboardData();
-    
-    // Update data immediately
     setData(newData);
-    
-    // Hide splash screen with a small buffer for smooth transition if it's showing
     if (showSplash) {
         setTimeout(() => {
             setShowSplash(false);
@@ -56,7 +60,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []); // Run once on mount
+  }, []);
 
   if (showSplash) {
       return <SplashScreen config={config} />;
@@ -66,10 +70,10 @@ const App: React.FC = () => {
     <HashRouter>
       <Layout onRefresh={loadData} loading={data.loading} lastUpdated={data.lastUpdated} config={config}>
         <Routes>
-          <Route path="/" element={<Leaderboard data={data} />} />
-          <Route path="/players" element={<Players data={data} />} />
-          <Route path="/teams" element={<Teams data={data} />} />
-          <Route path="/killfeed" element={<KillFeedPage data={data} />} />
+          <Route path="/" element={<Leaderboard data={data} globalFilters={globalFilters} setGlobalFilters={setGlobalFilters} />} />
+          <Route path="/players" element={<Players data={data} globalFilters={globalFilters} setGlobalFilters={setGlobalFilters} />} />
+          <Route path="/teams" element={<Teams data={data} globalFilters={globalFilters} setGlobalFilters={setGlobalFilters} />} />
+          <Route path="/killfeed" element={<KillFeedPage data={data} globalFilters={globalFilters} setGlobalFilters={setGlobalFilters} />} />
           <Route path="/admin" element={<Admin onRefresh={loadData} />} />
         </Routes>
       </Layout>

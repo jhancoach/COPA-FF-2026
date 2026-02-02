@@ -29,14 +29,12 @@ export const getAppConfig = (): AppConfig => {
   return DEFAULT_CONFIG;
 };
 
-// Helper to normalize dimension tables that might have different column names for the "Name" (e.g., Hab1 vs Pet)
+// Helper to normalize dimension tables
 const normalizeDim = (data: any[], keyName: string): GenericDimData[] => {
   return data.map(row => {
-    // Strategy: Look for specific key first, then common fallbacks
-    let name = row[keyName] || row[keyName.replace(/(\d)/, ' $1')]; // e.g. 'Hab1' or 'Hab 1'
+    let name = row[keyName] || row[keyName.replace(/(\d)/, ' $1')]; 
     
     if (!name) {
-        // Fallback checks for common header names in dimension tables (Case insensitive approach manually expanded)
         const possibleHeaders = [
             'Nome', 'Name', 'Personagem', 'Pet', 'Item', 'Arma', 'Safe', 'Habilidade',
             'NOME', 'NAME', 'PERSONAGEM', 'PET', 'ITEM', 'ARMA', 'SAFE', 'HABILIDADE'
@@ -49,11 +47,10 @@ const normalizeDim = (data: any[], keyName: string): GenericDimData[] => {
         }
     }
     
-    // Strategy for Image
     let img = '';
     const possibleImgHeaders = [
         'IMG', 'Img', 'img', 'Imagem', 'URL', 'Url', 'url', 'Link',
-        'IMAGEM', 'IMAGE', 'LINK' // Added Uppercase variants
+        'IMAGEM', 'IMAGE', 'LINK'
     ];
     for (const h of possibleImgHeaders) {
         if (row[h]) {
@@ -62,7 +59,6 @@ const normalizeDim = (data: any[], keyName: string): GenericDimData[] => {
         }
     }
 
-    // fallback: if strict keyName didn't work but we have an image and a "Personagem" column, use that.
     return { Name: name || '', IMG: img || '' };
   }).filter(r => r.Name && r.Name.trim() !== '');
 };
@@ -79,7 +75,6 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
       activeUrls.dTime,
       activeUrls.dArma,
       activeUrls.dSafe,
-      // New Dimensions
       activeUrls.dHab1,
       activeUrls.dHab2,
       activeUrls.dHab3,
@@ -90,12 +85,48 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 
     const responses = await Promise.all(urls.map(url => fetch(url).then(r => r.text())));
     
-    // Parse base data
-    const players = parseCSV<PlayerData>(responses[0]);
-    const killFeed = parseCSV<KillFeed>(responses[1]);
-    const details = parseCSV<MatchDetails>(responses[2]);
+    // Parse players (Fonte A)
+    const rawPlayers = parseCSV<any>(responses[0]);
+    const players: PlayerData[] = rawPlayers.map(row => ({
+        PLAYER: row['PLAYER'] || row['Player'] || row['Jogador'] || '',
+        TIME: row['TIME'] || row['Time'] || row['Equipe'] || '',
+        S: row['S'] || row['Partida'] || row['Quedas'] || '',
+        Abates: row['ABATES'] || row['Abates'] || row['Kills'] || row['KILLS'] || row['ABTS'] || '0',
+        MAPA: (row['MAPA'] || row['Mapa'] || row['Map'] || '').trim(),
+        RD: (row['RD'] || row['Rd'] || row['Rodada'] || row['Round'] || '').trim(),
+        Q: (row['Q'] || row['QUEDA'] || row['Queda'] || '').trim() || (row['S'] || '').trim()
+    })).filter(p => p.PLAYER);
+
+    // Parse KillFeed (Fonte B)
+    const rawKillFeed = parseCSV<any>(responses[1]);
+    const killFeed: KillFeed[] = rawKillFeed.map(row => ({
+        PLAYER: row['PLAYER'] || row['Player'] || row['Killer'] || row['Matador'] || '',
+        VITIMA: row['VITIMA'] || row['Vitima'] || row['Victim'] || '',
+        ARMA: row['ARMA'] || row['Arma'] || row['Weapon'] || '',
+        CONFRONTO: row['CONFRONTO'] || row['Confronto'] || '',
+        MAPA: (row['MAPA'] || row['Mapa'] || row['Map'] || '').trim(),
+        RD: (row['RD'] || row['Rd'] || row['Rodada'] || row['Round'] || '').trim(),
+        Q: (row['Q'] || row['QUEDA'] || row['Queda'] || '').trim(),
+        SAFE: row['SAFE'] || row['Safe'] || ''
+    })).filter(k => k.PLAYER);
+
+    // Parse Detalhes (Fonte C)
+    const rawDetails = parseCSV<any>(responses[2]);
+    const details: MatchDetails[] = rawDetails.map(row => ({
+        TIME: row['TIME'] || row['Time'] || '',
+        MAPA: (row['MAPA'] || row['Mapa'] || '').trim(),
+        RD: (row['RD'] || row['Rd'] || row['Rodada'] || row['Round'] || '').trim(),
+        CONFRONTO: row['CONFRONTO'] || row['Confronto'] || '',
+        PTS: row['PTS'] || '0',
+        PTSC: row['PTSC'] || row['PTS/C'] || '0',
+        POS: row['POS'] || '0',
+        ABTS: row['ABTS'] || '0',
+        B: row['B'] || '0',
+        S: row['S'] || '1',
+        Q: (row['Q'] || row['QUEDA'] || row['Queda'] || row['S'] || '').trim()
+    })).filter(d => d.TIME);
     
-    // Manual mapping for Characters to handle flexible headers (Hab1 vs Hab 1, etc)
+    // Parse Personagens (Fonte D)
     const rawCharacters = parseCSV<any>(responses[3]);
     const characters: CharacterData[] = rawCharacters.map(row => ({
         Player: row['Player'] || row['Jogador'] || row['PLAYER'] || '',
@@ -106,29 +137,26 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
         Hab4: row['Hab4'] || row['Hab 4'] || '',
         Pet: row['Pet'] || '',
         Item: row['Item'] || '',
-        Rd: row['Rd'] || row['RD'] || row['Rodada'] || '',
+        Rd: (row['Rd'] || row['RD'] || row['Rodada'] || '').trim(),
         Confronto: row['Confronto'] || row['CONFRONTO'] || '',
-        Mapa: row['Mapa'] || row['MAPA'] || '',
-        S: row['S'] || row['Partida'] || row['Quedas'] || ''
-    })).filter(c => c.Player); // Ensure valid row
+        Mapa: (row['Mapa'] || row['MAPA'] || '').trim(),
+        S: (row['S'] || row['Partida'] || row['Quedas'] || row['Q'] || '').trim()
+    })).filter(c => c.Player);
 
     const teamsReference = parseCSV<TeamReference>(responses[4]);
     
-    // Robust mapping for Weapons
     const rawWeapons = parseCSV<any>(responses[5]);
     const weapons: WeaponData[] = rawWeapons.map(row => ({
       Arma: row['Arma'] || row['ARMA'] || row['Nome'] || '',
       IMG: row['IMG'] || row['Img'] || row['img'] || row['Imagem'] || row['IMAGEM'] || ''
     })).filter(w => w.Arma);
 
-    // Robust mapping for Safes
     const rawSafes = parseCSV<any>(responses[6]);
     const safes: SafeData[] = rawSafes.map(row => ({
       Safe: row['Safe'] || row['SAFE'] || row['Nome'] || '',
       IMG: row['IMG'] || row['Img'] || row['img'] || row['Imagem'] || row['IMAGEM'] || ''
     })).filter(s => s.Safe);
 
-    // Parse Dimensions
     const hab1Raw = parseCSV<any>(responses[7]);
     const hab2Raw = parseCSV<any>(responses[8]);
     const hab3Raw = parseCSV<any>(responses[9]);
@@ -144,14 +172,12 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
       teamsReference,
       weapons,
       safes,
-      // Normalize dimensions assuming the CSV column name matches the file concept (e.g. dHab1 -> column Hab1)
       hab1: normalizeDim(hab1Raw, 'Hab1'),
       hab2: normalizeDim(hab2Raw, 'Hab2'),
       hab3: normalizeDim(hab3Raw, 'Hab3'),
       hab4: normalizeDim(hab4Raw, 'Hab4'),
       pets: normalizeDim(petsRaw, 'Pet'),
       items: normalizeDim(itemsRaw, 'Item'),
-
       loading: false,
       lastUpdated: new Date()
     };
@@ -174,8 +200,6 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 
 export const calculateTeamStats = (data: DashboardData): TeamStats[] => {
   const teamMap = new Map<string, TeamStats>();
-
-  // Map for team images
   const teamImages = new Map<string, string>();
   data.teamsReference.forEach(t => {
     if (t.TIME && t.IMG) {
@@ -183,10 +207,8 @@ export const calculateTeamStats = (data: DashboardData): TeamStats[] => {
     }
   });
 
-  // Calculate strictly from fDetalhes
   data.details.forEach(row => {
     const teamName = row.TIME;
-    // Strict check to remove blank lines
     if (!teamName || teamName.trim() === '') return;
 
     if (!teamMap.has(teamName)) {
@@ -207,9 +229,7 @@ export const calculateTeamStats = (data: DashboardData): TeamStats[] => {
     }
 
     const stats = teamMap.get(teamName)!;
-    
-    // Parse ints
-    const ptscVal = parseInt(row.PTSC) || parseInt((row as any)['PTS/C']) || 0;
+    const ptscVal = parseInt(row.PTSC) || 0;
     const ptsVal = parseInt(row.PTS) || 0;
     const abtsVal = parseInt(row.ABTS) || 0;
     const bVal = parseInt(row.B) || 0;
@@ -222,7 +242,6 @@ export const calculateTeamStats = (data: DashboardData): TeamStats[] => {
     stats.s += sVal;
   });
 
-  // Final Averages and Percentages
   const result: TeamStats[] = [];
   teamMap.forEach(stats => {
     if (stats.s > 0) {
@@ -239,6 +258,5 @@ export const calculateTeamStats = (data: DashboardData): TeamStats[] => {
     result.push(stats);
   });
 
-  // Sort by Total PTS descending
   return result.sort((a, b) => b.pts - a.pts);
 };

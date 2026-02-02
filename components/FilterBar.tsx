@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Filter, X, Search, Check, ChevronDown } from 'lucide-react';
 
@@ -7,7 +8,8 @@ interface FilterState {
   weapon: string;
   safe: string;
   map: string;
-  round: string;
+  rodada: string; // RD
+  queda: string;  // Q
   confrontation: string;
 }
 
@@ -20,7 +22,8 @@ interface FilterBarProps {
     weapons: string[];
     safes: string[];
     maps: string[];
-    rounds: string[];
+    rounds: string[];  // For RD
+    quedas: string[];  // For Q
     confrontations: string[];
   };
 }
@@ -39,7 +42,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, options }) =
       weapon: 'All',
       safe: 'All',
       map: 'All',
-      round: 'All',
+      rodada: 'All',
+      queda: 'All',
       confrontation: 'All'
     });
   };
@@ -50,7 +54,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, options }) =
     filters.weapon !== 'All' ||
     filters.safe !== 'All' ||
     filters.map !== 'All' ||
-    filters.round !== 'All' ||
+    filters.rodada !== 'All' ||
+    filters.queda !== 'All' ||
     filters.confrontation !== 'All';
 
   return (
@@ -62,7 +67,7 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, options }) =
 
       <div className={`${isOpen ? 'block' : 'hidden'} md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4`}>
         {/* Multi-Select for Players - Takes up 2 cols on lg */}
-        {options.players.length > 0 && (
+        {options.players && options.players.length > 0 && (
            <div className="lg:col-span-2">
               <MultiSelectPlayer 
                 options={options.players} 
@@ -73,15 +78,17 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, options }) =
         )}
 
         {/* Use Searchable Selects for fields that might have many options */}
-        {options.teams.length > 0 && <SearchableSelect label="Time" value={filters.team} options={options.teams} onChange={(v) => handleChange('team', v)} />}
-        {options.weapons.length > 0 && <SearchableSelect label="Arma" value={filters.weapon} options={options.weapons} onChange={(v) => handleChange('weapon', v)} />}
+        {options.teams && options.teams.length > 0 && <SearchableSelect label="Time" value={filters.team} options={options.teams} onChange={(v) => handleChange('team', v)} />}
         
-        {/* Standard Selects for smaller sets */}
-        {options.maps.length > 0 && <SearchableSelect label="Mapa" value={filters.map} options={options.maps} onChange={(v) => handleChange('map', v)} />}
-        {options.rounds.length > 0 && <SearchableSelect label="Rodada" value={filters.round} options={options.rounds} onChange={(v) => handleChange('round', v)} />}
+        {/* Novos Filtros RD e Queda */}
+        {options.rounds && options.rounds.length > 0 && <SearchableSelect label="Rodada (RD)" value={filters.rodada} options={options.rounds} onChange={(v) => handleChange('rodada', v)} />}
+        {options.quedas && options.quedas.length > 0 && <SearchableSelect label="Queda (Q)" value={filters.queda} options={options.quedas} onChange={(v) => handleChange('queda', v)} />}
         
-        {options.safes.length > 0 && <SearchableSelect label="Safe" value={filters.safe} options={options.safes} onChange={(v) => handleChange('safe', v)} />}
-        {options.confrontations.length > 0 && <SearchableSelect label="Confronto" value={filters.confrontation} options={options.confrontations} onChange={(v) => handleChange('confrontation', v)} />}
+        {options.maps && options.maps.length > 0 && <SearchableSelect label="Mapa" value={filters.map} options={options.maps} onChange={(v) => handleChange('map', v)} />}
+        
+        {options.weapons && options.weapons.length > 0 && <SearchableSelect label="Arma" value={filters.weapon} options={options.weapons} onChange={(v) => handleChange('weapon', v)} />}
+        {options.safes && options.safes.length > 0 && <SearchableSelect label="Safe" value={filters.safe} options={options.safes} onChange={(v) => handleChange('safe', v)} />}
+        {options.confrontations && options.confrontations.length > 0 && <SearchableSelect label="Confronto" value={filters.confrontation} options={options.confrontations} onChange={(v) => handleChange('confrontation', v)} />}
       </div>
 
       {hasActiveFilters && (
