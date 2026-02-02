@@ -1,8 +1,8 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { DashboardData, PlayerData } from '../types';
-import { Trophy, Crown, User, Swords, Zap, BarChart2, Scale, Map as MapIcon, Skull, ChevronRight, Sparkles, X, Activity, Info, Crosshair, Shield, ArrowLeft, Disc } from 'lucide-react';
+import { DashboardData, PlayerData, CharacterData } from '../types';
+import { Trophy, Crown, User, Swords, Zap, BarChart2, Scale, Map as MapIcon, Skull, ChevronRight, Sparkles, X, Activity, Info, Crosshair, Shield, ArrowLeft, Disc, Flame, Target, AlertCircle, LayoutGrid, MapPin, Hash, Target as TargetIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, LabelList, Cell, YAxis, CartesianGrid } from 'recharts';
 import FilterBar from '../components/FilterBar';
 
@@ -12,7 +12,8 @@ interface PlayersProps {
 
 const Players: React.FC<PlayersProps> = ({ data }) => {
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<'ranking' | 'chars' | 'report' | 'compare' | 'auditoria'>('ranking');
+  const [activeTab, setActiveTab] = useState<'ranking' | 'chars' | 'report' | 'auditoria'>('ranking');
+  const [activeHabFilter, setActiveHabFilter] = useState<string>('All');
   
   const [filters, setFilters] = useState({
     team: 'All',
@@ -34,94 +35,50 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
     }
   }, [location.state]);
 
-  const [compareA, setCompareA] = useState<string>('');
-  const [compareB, setCompareB] = useState<string>('');
-
   const normalize = (val: string | undefined) => (val || '').trim().toUpperCase();
+  const cleanKey = (s: string) => s.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
 
   const filterOptions = useMemo(() => {
     const teams = Array.from(new Set(data.players.map(p => p.TIME))).filter(Boolean).sort();
-    const players = Array.from(new Set(data.players.map(p => p.PLAYER))).filter(Boolean).sort();
     
-    const maps = Array.from(new Set([
-        ...data.players.map(p => p.MAPA),
-        ...data.killFeed.map(k => k.MAPA)
-    ])).filter(Boolean).sort();
+    const players = data.playersDimension.length > 0 
+        ? data.playersDimension.map(d => d.Name).sort()
+        : Array.from(new Set(data.players.map(p => p.PLAYER))).filter(Boolean).sort();
+    
+    const maps = Array.from(new Set([...data.players.map(p => p.MAPA), ...data.killFeed.map(k => k.MAPA), ...data.characters.map(c => c.Mapa)])).filter(Boolean).sort();
+    const rounds = Array.from(new Set([...data.players.map(p => p.RD), ...data.killFeed.map(k => k.RD), ...data.characters.map(c => c.Rd)])).filter(Boolean).sort();
+    const quedas = Array.from(new Set([...data.players.map(p => p.Q), ...data.characters.map(c => c.Q)])).filter(Boolean).sort();
+    const activeHabs = Array.from(new Set(data.characters.map(c => c.Hab1))).filter(Boolean).sort();
 
-    const rounds = Array.from(new Set([
-        ...data.players.map(p => p.RD),
-        ...data.killFeed.map(k => k.RD)
-    ])).filter(Boolean).sort();
+    return { teams, players, weapons: [], safes: [], maps, rounds, quedas, confrontations: [], activeHabs };
+  }, [data.players, data.killFeed, data.characters, data.playersDimension]);
 
-    const quedas = Array.from(new Set([
-        ...data.players.map(p => p.Q),
-        ...data.killFeed.map(k => k.Q)
-    ])).filter(Boolean).sort();
+  const charactersMap = useMemo(() => {
+      const m = new Map<string, any>();
+      data.characters.forEach(c => {
+          if (!c.Player) return;
+          const key = normalize(c.Player);
+          
+          const findDimImg = (dims: any[], name: string) => {
+             if (!name) return undefined;
+             const target = cleanKey(name);
+             return dims.find(d => cleanKey(d.Name) === target)?.IMG;
+          };
 
-    return { teams, players, weapons: [], safes: [], maps, rounds, quedas, confrontations: [] };
-  }, [data.players, data.killFeed]);
-
-  const playerToTeamMap = useMemo(() => {
-      const m = new Map<string, string>();
-      data.players.forEach(p => {
-          if (p.PLAYER && p.TIME) m.set(normalize(p.PLAYER), p.TIME);
+          if (!m.has(key)) {
+              m.set(key, {
+                  ...c,
+                  hab1Img: findDimImg(data.hab1, c.Hab1),
+                  hab2Img: findDimImg(data.hab2, c.Hab2),
+                  hab3Img: findDimImg(data.hab3, c.Hab3),
+                  hab4Img: findDimImg(data.hab4, c.Hab4),
+                  petImg: findDimImg(data.pets, c.Pet),
+                  itemImg: findDimImg(data.items, c.Item),
+              });
+          }
       });
       return m;
-  }, [data.players]);
-
-  const auditData = useMemo(() => {
-    if (activeTab !== 'auditoria') return [];
-    const filterMap = normalize(filters.map);
-    const filterRd = normalize(filters.rodada);
-    const filterQ = normalize(filters.queda);
-
-    const filteredA = data.players.filter(p => {
-      if (filters.team !== 'All' && p.TIME !== filters.team) return false;
-      if (filters.players.length > 0 && !filters.players.includes(p.PLAYER)) return false;
-      if (filters.map !== 'All' && normalize(p.MAPA) !== filterMap) return false;
-      if (filters.rodada !== 'All' && normalize(p.RD) !== filterRd) return false;
-      if (filters.queda !== 'All' && normalize(p.Q) !== filterQ) return false;
-      return true;
-    });
-
-    const filteredB = data.killFeed.filter(k => {
-      if (filters.map !== 'All' && normalize(k.MAPA) !== filterMap) return false;
-      if (filters.rodada !== 'All' && normalize(k.RD) !== filterRd) return false;
-      if (filters.queda !== 'All' && normalize(k.Q) !== filterQ) return false;
-      if (filters.players.length > 0 && !filters.players.includes(k.PLAYER)) return false;
-      if (filters.team !== 'All') {
-          const team = playerToTeamMap.get(normalize(k.PLAYER));
-          if (team !== filters.team) return false;
-      }
-      return true;
-    });
-
-    const allPlayers = new Set<string>();
-    const statsA: Record<string, { kills: number, team: string }> = {};
-    const statsB: Record<string, number> = {};
-
-    filteredA.forEach(p => {
-      if (!p.PLAYER) return;
-      allPlayers.add(p.PLAYER);
-      statsA[p.PLAYER] = {
-        kills: (statsA[p.PLAYER]?.kills || 0) + (parseInt(p.Abates) || 0),
-        team: p.TIME
-      };
-    });
-
-    filteredB.forEach(k => {
-      if (!k.PLAYER) return;
-      allPlayers.add(k.PLAYER);
-      statsB[k.PLAYER] = (statsB[k.PLAYER] || 0) + 1;
-    });
-
-    return Array.from(allPlayers).map(name => ({
-      name,
-      team: statsA[name]?.team || playerToTeamMap.get(normalize(name)) || 'N/A',
-      killsA: statsA[name]?.kills || 0,
-      killsB: statsB[name] || 0
-    })).sort((a, b) => b.killsA - a.killsA);
-  }, [data.players, data.killFeed, filters, activeTab, playerToTeamMap]);
+  }, [data.characters, data.hab1, data.hab2, data.hab3, data.hab4, data.pets, data.items]);
 
   const rankingData = useMemo(() => {
     if (activeTab !== 'ranking') return [];
@@ -130,8 +87,8 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
     const filterQ = normalize(filters.queda);
 
     const filtered = data.players.filter(p => {
-        if (filters.team !== 'All' && p.TIME !== filters.team) return false;
-        if (filters.players.length > 0 && !filters.players.includes(p.PLAYER)) return false;
+        if (filters.team !== 'All' && normalize(p.TIME) !== normalize(filters.team)) return false;
+        if (filters.players.length > 0 && !filters.players.some(fp => normalize(fp) === normalize(p.PLAYER))) return false;
         if (filters.map !== 'All' && normalize(p.MAPA) !== filterMap) return false;
         if (filters.rodada !== 'All' && normalize(p.RD) !== filterRd) return false;
         if (filters.queda !== 'All' && normalize(p.Q) !== filterQ) return false;
@@ -140,9 +97,8 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
 
     const statsMap = new Map<string, { kills: number; matches: number; team: string }>();
     filtered.forEach(p => {
-        if (!p.PLAYER) return;
         const kills = parseInt(p.Abates || '0');
-        const matches = parseInt(p.S || '0'); 
+        const matches = 1; 
         if (!statsMap.has(p.PLAYER)) {
             statsMap.set(p.PLAYER, { kills, matches, team: p.TIME });
         } else {
@@ -153,60 +109,66 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
     });
 
     return Array.from(statsMap.entries()).map(([name, stat]) => ({
-        name,
-        team: stat.team,
-        kills: stat.kills,
-        matches: stat.matches,
-        avg: stat.matches > 0 ? (stat.kills / stat.matches).toFixed(2) : '0.00'
+        name, team: stat.team, kills: stat.kills, matches: stat.matches,
+        avg: stat.matches > 0 ? (stat.kills / stat.matches).toFixed(2) : '0.00',
+        loadout: charactersMap.get(normalize(name))
     })).sort((a, b) => b.kills - a.kills);
-  }, [data.players, filters, activeTab]);
-
-  const handlePlayerClick = (playerName: string) => {
-      setFilters(prev => ({ ...prev, players: [playerName] }));
-      setActiveTab('report');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, [data.players, filters, activeTab, charactersMap]);
 
   const charactersData = useMemo(() => {
-    if (activeTab !== 'chars') return [];
     const filterMap = normalize(filters.map);
     const filterRd = normalize(filters.rodada);
+    const filterQ = normalize(filters.queda);
 
     return data.characters.filter(c => {
-        if (filters.team !== 'All' && c.Time !== filters.team) return false;
-        if (filters.players.length > 0 && !filters.players.includes(c.Player)) return false;
-        if (filters.map !== 'All' && normalize(c.Mapa) !== filterMap) return false;
-        if (filters.rodada !== 'All' && normalize(c.Rd) !== filterRd) return false;
+        if (!c.Player) return false;
+        if (filters.team !== 'All' && normalize(c.Time) !== normalize(filters.team)) return false;
+        if (filters.players.length > 0 && !filters.players.some(fp => normalize(fp) === normalize(c.Player))) return false;
+        
+        const cMapa = normalize(c.Mapa);
+        if (filters.map !== 'All' && cMapa && cMapa !== filterMap) return false;
+        const cRd = normalize(c.Rd);
+        if (filters.rodada !== 'All' && cRd && cRd !== filterRd) return false;
+        
+        const cQueda = normalize(c.Q);
+        if (filters.queda !== 'All' && cQueda && cQueda !== filterQ) return false;
+        
+        if (activeHabFilter !== 'All' && normalize(c.Hab1) !== normalize(activeHabFilter)) return false;
         return true;
     }).map(c => {
-         const findDim = (dims: any[], name: string) => {
+         const findDimImg = (dims: any[], name: string) => {
              if (!name) return undefined;
-             const cleanName = name.trim().toLowerCase();
-             return dims.find(d => d.Name.trim().toLowerCase() === cleanName)?.IMG;
+             const target = cleanKey(name);
+             return dims.find(d => cleanKey(d.Name) === target)?.IMG;
          }
          return {
              ...c,
-             hab1Img: findDim(data.hab1, c.Hab1),
-             hab2Img: findDim(data.hab2, c.Hab2),
-             hab3Img: findDim(data.hab3, c.Hab3),
-             hab4Img: findDim(data.hab4, c.Hab4),
-             petImg: findDim(data.pets, c.Pet),
-             itemImg: findDim(data.items, c.Item),
-             teamImg: data.teamsReference.find(t => t.TIME === c.Time)?.IMG
+             hab1Img: findDimImg(data.hab1, c.Hab1),
+             hab2Img: findDimImg(data.hab2, c.Hab2),
+             hab3Img: findDimImg(data.hab3, c.Hab3),
+             hab4Img: findDimImg(data.hab4, c.Hab4),
+             petImg: findDimImg(data.pets, c.Pet),
+             itemImg: findDimImg(data.items, c.Item),
+             teamImg: data.teamsReference.find(t => normalize(t.TIME) === normalize(c.Time))?.IMG
          };
     });
-  }, [data.characters, filters, data.hab1, data.hab2, data.hab3, data.hab4, data.pets, data.items, activeTab, data.teamsReference]);
+  }, [data.characters, filters, data.hab1, data.hab2, data.hab3, data.hab4, data.pets, data.items, data.teamsReference, activeHabFilter]);
+
+  const usageStats = useMemo(() => {
+    if (activeHabFilter === 'All') return null;
+    const total = data.characters.length || 1;
+    const count = charactersData.length;
+    const percent = ((count / total) * 100).toFixed(1);
+    return { count, percent };
+  }, [charactersData, data.characters, activeHabFilter]);
 
   return (
     <div className="space-y-6">
-      {/* Abas Superiores */}
       <div className="flex flex-wrap gap-2 border-b border-gray-700 pb-2 no-print">
         {[
             { id: 'ranking', label: 'Ranking Geral', icon: <Trophy size={18} /> },
-            { id: 'auditoria', label: 'Auditoria Kills', icon: <Activity size={18} /> },
             { id: 'chars', label: 'Loadouts', icon: <User size={18} /> },
             { id: 'report', label: 'Perfil Individual', icon: <BarChart2 size={18} /> },
-            { id: 'compare', label: 'Comparar Jogadores', icon: <Scale size={18} /> },
         ].map(tab => (
             <button 
                 key={tab.id} 
@@ -218,12 +180,8 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
         ))}
       </div>
 
-      {/* Barra de Filtros */}
-      {activeTab !== 'compare' && (
-        <FilterBar filters={filters} setFilters={setFilters} options={filterOptions} />
-      )}
+      <FilterBar filters={filters} setFilters={setFilters} options={filterOptions} />
 
-      {/* Conteúdo das Abas */}
       <div className="min-h-[600px]">
           {activeTab === 'ranking' && (
             <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-800 shadow-xl animate-in fade-in duration-300">
@@ -234,76 +192,111 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
                                 <th className="px-6 py-4 w-12 text-center">#</th>
                                 <th className="px-6 py-4">Jogador</th>
                                 <th className="px-6 py-4">Equipe</th>
+                                <th className="px-6 py-4 text-center">Ativa</th>
                                 <th className="px-6 py-4 text-center text-red-500">Abates</th>
                                 <th className="px-6 py-4 text-center text-yellow-500">Média</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800 text-sm font-medium">
                             {rankingData.map((player, idx) => (
-                                <tr key={idx} onClick={() => handlePlayerClick(player.name)} className="hover:bg-yellow-900/10 transition-colors cursor-pointer group">
+                                <tr key={idx} onClick={() => { setFilters(prev => ({...prev, players: [player.name]})); setActiveTab('report'); }} className="hover:bg-yellow-900/10 transition-colors cursor-pointer group">
                                     <td className="px-6 py-4 text-gray-600 font-mono text-center">{idx + 1}</td>
                                     <td className="px-6 py-4 font-bold text-white uppercase italic flex items-center gap-2">
                                         {player.name}
                                         <ChevronRight size={14} className="text-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </td>
                                     <td className="px-6 py-4 text-gray-400 uppercase text-[10px] tracking-widest">{player.team}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        {player.loadout?.hab1Img ? (
+                                            <div className="flex justify-center items-center">
+                                                <div className="w-8 h-8 rounded-lg bg-black border border-yellow-500/30 p-1 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                                                    <img src={player.loadout.hab1Img} className="w-full h-full object-contain" alt={player.loadout.Hab1} />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-700 font-black italic opacity-20">-</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-center text-red-400 font-black text-lg">{player.kills}</td>
                                     <td className="px-6 py-4 text-center text-yellow-400 font-bold">{player.avg}</td>
                                 </tr>
                             ))}
-                            {rankingData.length === 0 && <tr><td colSpan={5} className="py-20 text-center text-gray-600 font-mono uppercase italic tracking-widest">Nenhum registro encontrado nos filtros atuais</td></tr>}
                         </tbody>
                     </table>
                 </div>
             </div>
           )}
 
-          {activeTab === 'auditoria' && (
-            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
-                <div className="bg-blue-900/10 border border-blue-500/20 p-4 rounded-xl flex items-start gap-3">
-                    <Info size={20} className="text-blue-400 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                        <p className="text-xs text-blue-200 font-bold uppercase tracking-wide">Auditoria Cruzada (RD + Q + Mapa):</p>
-                        <p className="text-[11px] text-blue-300/80 leading-relaxed">
-                            Cruzamento simultâneo dos dados reportados em <b>fPlayersDados</b> contra os eventos reais de <b>fKillFeed</b>.
-                        </p>
-                    </div>
-                </div>
+          {activeTab === 'chars' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4 bg-black/40 p-5 rounded-2xl border border-gray-800 shadow-xl">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+                            <div className="text-yellow-500 font-black uppercase text-xs tracking-widest flex items-center gap-2"><Flame size={16} /> Habilidade Ativa:</div>
+                            <select 
+                                value={activeHabFilter} 
+                                onChange={(e) => setActiveHabFilter(e.target.value)}
+                                className="bg-black text-white p-2.5 rounded-xl border border-gray-800 text-xs font-bold uppercase outline-none focus:border-yellow-500 min-w-[200px] transition-colors"
+                            >
+                                <option value="All">Todas as Ativas</option>
+                                {filterOptions.activeHabs.map(h => <option key={h} value={h}>{h}</option>)}
+                            </select>
+                        </div>
 
-                <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-800 shadow-2xl">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left whitespace-nowrap">
-                            <thead className="bg-[#0f0f0f] text-gray-500 text-[10px] uppercase font-black tracking-widest">
-                                <tr>
-                                    <th className="px-6 py-4">Jogador</th>
-                                    <th className="px-6 py-4">Equipe</th>
-                                    <th className="px-6 py-4 text-center bg-yellow-900/10 text-yellow-500 border-l border-gray-800">fPlayersDados</th>
-                                    <th className="px-6 py-4 text-center bg-blue-900/10 text-blue-400 border-l border-gray-800">fKillFeed</th>
-                                    <th className="px-6 py-4 text-center border-l border-gray-800">Diferença</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-800 text-sm font-medium">
-                                {auditData.length > 0 ? auditData.map((player, idx) => {
-                                    const diff = Math.abs(player.killsA - player.killsB);
-                                    return (
-                                        <tr key={idx} className="hover:bg-white/5 transition-colors">
-                                            <td className="px-6 py-4 font-bold text-white uppercase italic">{player.name}</td>
-                                            <td className="px-6 py-4 text-gray-500 text-[10px] uppercase">{player.team}</td>
-                                            <td className="px-6 py-4 text-center font-black text-yellow-500 bg-yellow-900/5 text-lg border-l border-gray-800">{player.killsA}</td>
-                                            <td className="px-6 py-4 text-center font-black text-blue-400 bg-blue-900/5 text-lg border-l border-gray-800">{player.killsB}</td>
-                                            <td className={`px-6 py-4 text-center font-mono border-l border-gray-800 ${diff !== 0 ? 'text-red-500 font-black' : 'text-green-500 opacity-40'}`}>
-                                                {diff === 0 ? 'OK' : `±${diff}`}
-                                            </td>
-                                        </tr>
-                                    );
-                                }) : (
-                                    <tr><td colSpan={5} className="py-24 text-center text-gray-600 font-mono uppercase tracking-widest">Nenhum dado para auditoria</td></tr>
-                                )}
-                            </tbody>
-                        </table>
+                        <div className="flex items-center gap-4 bg-black/60 px-6 py-3 rounded-2xl border border-white/5">
+                            {usageStats ? (
+                                <>
+                                    <div className="flex flex-col items-center border-r border-white/10 pr-4">
+                                        <span className="text-yellow-500 font-black text-xl leading-none">{usageStats.count}</span>
+                                        <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">Jogadores</span>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-white font-black text-xl leading-none italic">{usageStats.percent}%</span>
+                                        <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">Popularidade Meta</span>
+                                    </div>
+                                    <div className="ml-2">
+                                        <Activity size={24} className="text-yellow-500 animate-pulse opacity-50" />
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-end">
+                                    <span className="text-gray-500 text-[10px] font-mono uppercase tracking-widest">Meta de Jogo Geral</span>
+                                    <span className="text-white font-black text-sm uppercase italic">Total: {data.characters.length} Loadouts</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            </div>
+
+                    <div className="space-y-4">
+                        {charactersData.length > 0 ? charactersData.map((char, idx) => (
+                            <div key={idx} className="bg-[#0e0e11] rounded-2xl p-6 border border-gray-800/60 flex flex-col md:flex-row gap-8 items-center hover:border-yellow-500/20 transition-all shadow-2xl group">
+                                <div className="w-full md:w-64 flex items-center gap-5 border-b md:border-b-0 md:border-r border-gray-800/60 pb-5 md:pb-0 pr-0 md:pr-8">
+                                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-[#1a1a1a] to-black flex items-center justify-center overflow-hidden border-2 border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.1)] p-1 flex-shrink-0 group-hover:scale-105 transition-transform">
+                                        {char.teamImg ? <img src={char.teamImg} className="w-full h-full object-contain" alt={char.Time}/> : <div className="bg-gray-800 w-full h-full rounded-full flex items-center justify-center"><User className="text-gray-500" size={32}/></div>}
+                                    </div>
+                                    <div className="overflow-hidden">
+                                        <h3 className="font-black text-white text-2xl truncate uppercase italic leading-none tracking-tighter group-hover:text-yellow-500 transition-colors">{char.Player}</h3>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className="text-sm text-yellow-500 font-black uppercase tracking-widest opacity-80">{char.Time}</span>
+                                            <span className="text-[10px] text-gray-600 font-mono font-bold px-2 py-0.5 bg-white/5 rounded">Q{char.Q}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 w-full flex items-center gap-3 overflow-x-auto pb-4 md:pb-0 custom-scrollbar justify-between">
+                                    <PremiumLoadoutCard title="ATIVA" name={char.Hab1} img={char.hab1Img} highlight />
+                                    <PremiumLoadoutCard title="HAB 2" name={char.Hab2} img={char.hab2Img} />
+                                    <PremiumLoadoutCard title="HAB 3" name={char.Hab3} img={char.hab3Img} />
+                                    <PremiumLoadoutCard title="HAB 4" name={char.Hab4} img={char.hab4Img} />
+                                    <PremiumLoadoutCard title="PET" name={char.Pet} img={char.petImg} />
+                                    <PremiumLoadoutCard title="ITEM" name={char.Item} img={char.itemImg} />
+                                </div>
+                            </div>
+                        )) : (
+                            <div className="py-24 text-center text-gray-700 font-black italic uppercase tracking-widest border border-dashed border-gray-800 rounded-3xl">
+                                {data.characters.length === 0 ? "Buscando dados em fPersonagens..." : "Nenhum Loadout filtrado para esta Queda."}
+                            </div>
+                        )}
+                    </div>
+              </div>
           )}
 
           {activeTab === 'report' && (
@@ -313,60 +306,14 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
                            <button onClick={() => { setFilters(prev => ({...prev, players: []})); setActiveTab('ranking'); }} className="text-xs text-yellow-500 hover:text-yellow-400 flex items-center gap-1 font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg border border-white/5 transition-colors">
                                <ArrowLeft size={14}/> Voltar para Ranking
                            </button>
-                           <PlayerProfile data={data} playerName={filters.players[0]} filters={filters} />
+                           <PlayerProfile data={data} playerName={filters.players[0]} filters={filters} characters={data.characters} />
                       </div>
                   ) : (
                       <div className="bg-[#1a1a1a] rounded-2xl p-24 text-center border border-gray-800 shadow-inner">
                           <User size={64} className="mx-auto text-gray-800 mb-6" />
-                          <h3 className="text-2xl font-black text-gray-400 uppercase italic tracking-tighter">Selecione um jogador no Ranking para ver o perfil completo</h3>
+                          <h3 className="text-2xl font-black text-gray-400 uppercase italic tracking-tighter">Selecione um jogador no Ranking</h3>
                       </div>
                   )}
-              </div>
-          )}
-
-          {activeTab === 'chars' && (
-              <div className="space-y-3 animate-in fade-in duration-300">
-                    {charactersData.map((char, idx) => (
-                        <div key={idx} className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-800 flex flex-col xl:flex-row gap-4 items-center hover:border-yellow-500/30 transition-all shadow-lg">
-                            <div className="w-full xl:w-56 flex items-center gap-4 border-b xl:border-b-0 xl:border-r border-gray-800 pb-3 xl:pb-0 pr-0 xl:pr-4">
-                                <div className="h-14 w-14 rounded-full bg-black/60 flex items-center justify-center overflow-hidden border border-gray-700 shadow-inner">
-                                    {char.teamImg ? <img src={char.teamImg} className="w-full h-full object-contain p-1" alt={char.Time}/> : <User className="text-gray-500" size={24}/>}
-                                </div>
-                                <div className="overflow-hidden">
-                                    <h3 className="font-black text-white text-base truncate uppercase italic leading-none">{char.Player}</h3>
-                                    <span className="text-[10px] text-yellow-500 font-bold block mt-1 uppercase tracking-widest">{char.Time}</span>
-                                </div>
-                            </div>
-                            <div className="flex-1 w-full overflow-x-auto flex gap-4 pb-2 custom-scrollbar">
-                                <LoadoutCard title="Ativa" name={char.Hab1} img={char.hab1Img} highlight />
-                                <LoadoutCard title="Hab 2" name={char.Hab2} img={char.hab2Img} />
-                                <LoadoutCard title="Hab 3" name={char.Hab3} img={char.hab3Img} />
-                                <LoadoutCard title="Hab 4" name={char.Hab4} img={char.hab4Img} />
-                                <LoadoutCard title="Pet" name={char.Pet} img={char.petImg} />
-                                <LoadoutCard title="Item" name={char.Item} img={char.itemImg} />
-                            </div>
-                        </div>
-                    ))}
-                    {charactersData.length === 0 && <div className="py-20 text-center text-gray-700 font-black uppercase italic border border-dashed border-gray-800 rounded-2xl">Nenhum Loadout Registrado para este filtro</div>}
-              </div>
-          )}
-
-          {activeTab === 'compare' && (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 animate-in fade-in duration-300">
-                  <div className="space-y-4">
-                      <select value={compareA} onChange={e => setCompareA(e.target.value)} className="w-full bg-black text-white p-3 rounded-lg border border-gray-800 font-bold uppercase text-xs">
-                          <option value="">Selecione Jogador 1...</option>
-                          {filterOptions.players.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                      {compareA && <PlayerProfile data={data} playerName={compareA} filters={{...filters, players: [compareA]}} isCompact />}
-                  </div>
-                  <div className="space-y-4">
-                      <select value={compareB} onChange={e => setCompareB(e.target.value)} className="w-full bg-black text-white p-3 rounded-lg border border-gray-800 font-bold uppercase text-xs">
-                          <option value="">Selecione Jogador 2...</option>
-                          {filterOptions.players.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                      {compareB && <PlayerProfile data={data} playerName={compareB} filters={{...filters, players: [compareB]}} isCompact />}
-                  </div>
               </div>
           )}
       </div>
@@ -374,21 +321,30 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
   );
 };
 
-const LoadoutCard = ({ title, name, img, highlight }: any) => (
-  <div className={`w-28 flex flex-col items-center p-3 rounded-xl border flex-shrink-0 ${highlight ? 'bg-yellow-900/10 border-yellow-500/50' : 'bg-black/40 border-gray-800'}`}>
-    <span className="text-[9px] text-gray-600 uppercase font-black mb-2 truncate w-full text-center tracking-tighter">{title}</span>
-    <div className="w-14 h-14 rounded-xl bg-black/60 border border-gray-700 overflow-hidden flex items-center justify-center p-1.5 mb-2 shadow-inner">
-      {img ? <img src={img} alt={name} className="w-full h-full object-contain" /> : <div className="text-gray-800 text-[10px] font-black italic">NI</div>}
+const PremiumLoadoutCard = ({ title, name, img, highlight }: any) => (
+  <div className={`flex flex-col items-center flex-shrink-0 group w-[110px]`}>
+    <div className={`w-full flex flex-col items-center p-4 rounded-2xl border transition-all duration-300 ${highlight ? 'bg-yellow-500/5 border-yellow-500 shadow-[0_0_25px_rgba(234,179,8,0.15)] scale-[1.05] z-10' : 'bg-[#121215] border-gray-800/60 hover:border-gray-600'}`}>
+        <span className={`text-[9px] font-black uppercase mb-4 tracking-[0.2em] ${highlight ? 'text-yellow-500/60' : 'text-gray-500'}`}>
+            {title}
+        </span>
+        <div className={`w-14 h-14 rounded-2xl bg-black/60 border border-gray-800/80 flex items-center justify-center p-1.5 shadow-inner mb-4 overflow-hidden group-hover:scale-110 transition-transform`}>
+            {img ? <img src={img} alt={name} className="w-full h-full object-contain" /> : <Zap size={16} className="text-gray-600 opacity-20" />}
+        </div>
+        <div className="w-full text-center overflow-hidden">
+            <span className={`text-[10px] font-black uppercase italic truncate block tracking-tighter ${highlight ? 'text-yellow-500 underline underline-offset-4 decoration-yellow-500/30' : 'text-gray-300'}`}>
+                {name || '-'}
+            </span>
+        </div>
     </div>
-    <span className={`text-[10px] font-black text-center truncate w-full uppercase italic ${highlight ? 'text-yellow-500' : 'text-gray-400'}`}>{name || '-'}</span>
   </div>
 );
 
-const PlayerProfile = ({ data, playerName, filters, isCompact }: { data: DashboardData, playerName: string, filters: any, isCompact?: boolean }) => {
+const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
     const normalize = (val: string | undefined) => (val || '').trim().toUpperCase();
+    const cleanKey = (s: string) => s.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
 
     const stats = useMemo(() => {
-        const records = data.players.filter(p => {
+        const records = data.players.filter((p: PlayerData) => {
             if (normalize(p.PLAYER) !== normalize(playerName)) return false;
             if (filters.rodada !== 'All' && normalize(p.RD) !== normalize(filters.rodada)) return false;
             if (filters.map !== 'All' && normalize(p.MAPA) !== normalize(filters.map)) return false;
@@ -396,127 +352,208 @@ const PlayerProfile = ({ data, playerName, filters, isCompact }: { data: Dashboa
             return true;
         });
 
-        const totalKills = records.reduce((acc: number, r: PlayerData) => acc + (parseInt(r.Abates) || 0), 0);
-        const totalMatches = records.reduce((acc: number, r: PlayerData) => acc + (parseInt(r.S) || 0), 0);
-        const team = records[0]?.TIME || data.players.find(p => normalize(p.PLAYER) === normalize(playerName))?.TIME || 'N/A';
-        const teamImg = data.teamsReference.find(t => t.TIME === team)?.IMG;
-
-        const maps: Record<string, number> = {};
-        records.forEach(r => { if (r.MAPA) { maps[r.MAPA] = (maps[r.MAPA] || 0) + (parseInt(r.Abates) || 0); } });
-
-        const quedas: Record<string, number> = {};
-        records.forEach(r => { if (r.Q) { quedas[r.Q] = (quedas[r.Q] || 0) + (parseInt(r.Abates) || 0); } });
-
-        const historyMap = new Map<string, number>();
+        // Abates por Mapa
+        const mapKillsMap: Record<string, number> = {};
         records.forEach(r => {
-            if (r.RD) {
-                historyMap.set(r.RD, (historyMap.get(r.RD) || 0) + (parseInt(r.Abates) || 0));
-            }
+            const m = r.MAPA || 'DESCONHECIDO';
+            mapKillsMap[m] = (mapKillsMap[m] || 0) + (parseInt(r.Abates) || 0);
         });
-        const history = Array.from(historyMap.entries()).map(([rd, kills]) => ({ rd, kills })).sort((a, b) => {
-             const numA = parseInt(a.rd.replace(/\D/g, '')) || 0;
-             const numB = parseInt(b.rd.replace(/\D/g, '')) || 0;
-             return numA - numB;
-        });
+        const mapKills = Object.entries(mapKillsMap).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count);
 
-        return { team, teamImg, kills: totalKills, matches: totalMatches, avg: totalMatches > 0 ? (totalKills / totalMatches).toFixed(2) : '0.00', history, maps, quedas };
-    }, [data.players, data.teamsReference, playerName, filters]);
+        // Abates por Rodada
+        const roundKillsMap: Record<string, number> = {};
+        records.forEach(r => {
+            const rd = r.RD || 'N/A';
+            roundKillsMap[rd] = (roundKillsMap[rd] || 0) + (parseInt(r.Abates) || 0);
+        });
+        const roundKills = Object.entries(roundKillsMap)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => {
+                const numA = parseInt(a.name.replace(/\D/g, '')) || 0;
+                const numB = parseInt(b.name.replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
+        // Abates por Queda (Q)
+        const dropKillsMap: Record<string, number> = {};
+        records.forEach(r => {
+            const q = r.Q || 'N/A';
+            dropKillsMap[q] = (dropKillsMap[q] || 0) + (parseInt(r.Abates) || 0);
+        });
+        const dropKills = Object.entries(dropKillsMap)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => {
+                const numA = parseInt(a.name.replace(/\D/g, '')) || 0;
+                const numB = parseInt(b.name.replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
+        // Abates por Safe (fKillFeed)
+        const playerSafeKillsMap: Record<string, number> = {};
+        data.killFeed.filter((k: any) => normalize(k.PLAYER) === normalize(playerName)).forEach((k: any) => {
+             const safe = k.SAFE || 'OUT';
+             playerSafeKillsMap[safe] = (playerSafeKillsMap[safe] || 0) + 1;
+        });
+        const safeKills = Object.entries(playerSafeKillsMap).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count);
+
+        const totalKills = records.reduce((acc: number, r: PlayerData) => acc + (parseInt(r.Abates) || 0), 0);
+        const totalMatches = records.length; 
+        
+        const team = records[0]?.TIME || data.players.find(p => normalize(p.PLAYER) === normalize(playerName))?.TIME || 'N/A';
+        const teamImg = data.teamsReference.find(t => normalize(t.TIME) === normalize(team))?.IMG;
+
+        const findDimImg = (dims: any[], name: string) => {
+            if (!name) return undefined;
+            const target = cleanKey(name);
+            return dims.find(d => cleanKey(d.Name) === target)?.IMG;
+        }
+
+        const rawLoadout = characters.find((l: any) => normalize(l.Player) === normalize(playerName));
+        const currentLoadout = rawLoadout ? {
+            ...rawLoadout,
+            hab1Img: findDimImg(data.hab1, rawLoadout.Hab1),
+            hab2Img: findDimImg(data.hab2, rawLoadout.Hab2),
+            hab3Img: findDimImg(data.hab3, rawLoadout.Hab3),
+            hab4Img: findDimImg(data.hab4, rawLoadout.Hab4),
+            petImg: findDimImg(data.pets, rawLoadout.Pet),
+            itemImg: findDimImg(data.items, rawLoadout.Item),
+        } : null;
+
+        return { team, teamImg, kills: totalKills, matches: totalMatches, avg: totalMatches > 0 ? (totalKills / totalMatches).toFixed(2) : '0.00', loadout: currentLoadout, safeKills, mapKills, roundKills, dropKills };
+    }, [data, playerName, filters, characters]);
 
     return (
-        <div className={`space-y-6 ${isCompact ? 'bg-[#1a1a1a] p-5 rounded-2xl border border-gray-800 shadow-2xl' : ''}`}>
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-gradient-to-br from-[#2d0a31] to-[#050505] p-8 rounded-3xl border border-white/5 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-12 opacity-5">
-                    <Crown size={200} className="text-yellow-500" />
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-gradient-to-br from-[#1a1a1a] to-black p-8 rounded-3xl border border-white/5 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                     <User size={200} className="text-yellow-500" />
                 </div>
                 <div className="flex items-center gap-6 relative z-10">
-                    <div className="w-24 h-24 rounded-full bg-black border-4 border-yellow-500 flex items-center justify-center overflow-hidden p-1 shadow-lg">
+                    <div className="w-24 h-24 rounded-full bg-black border-4 border-yellow-500/50 flex items-center justify-center overflow-hidden p-1 shadow-lg">
                         {stats.teamImg ? <img src={stats.teamImg} className="w-full h-full object-contain" alt={stats.team}/> : <User className="text-gray-500" size={40} />}
                     </div>
                     <div>
                         <h2 className="text-4xl font-black italic text-white uppercase leading-none tracking-tighter">{playerName}</h2>
                         <div className="flex items-center gap-2 mt-2">
-                            <span className="text-yellow-500 font-black uppercase tracking-[0.2em] text-xs">{stats.team}</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-gray-700"></div>
-                            <span className="text-gray-400 font-bold text-[10px] uppercase">Elite Squad Player</span>
+                             <Shield size={14} className="text-yellow-500" />
+                             <span className="text-yellow-500 font-black uppercase tracking-[0.2em] text-xs block">{stats.team}</span>
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-4 relative z-10">
+                <div className="flex flex-wrap justify-center gap-4 relative z-10">
                     <MetricCard label="Abates" value={stats.kills} color="text-red-500" />
-                    <MetricCard label="Jogos" value={stats.matches} color="text-blue-500" />
+                    <MetricCard label="Salas" value={stats.matches} color="text-blue-400" />
                     <MetricCard label="Média" value={stats.avg} color="text-yellow-500" />
                 </div>
             </div>
 
-            {!isCompact && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-xl">
-                    <h3 className="text-sm font-black text-white uppercase mb-8 flex items-center gap-3 tracking-widest"><BarChart2 size={18} className="text-yellow-500" /> Evolução por Rodada (RD)</h3>
-                    <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.history} margin={{top: 20, bottom: 20}}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                                <XAxis dataKey="rd" stroke="#525252" fontSize={11} fontWeight="bold" axisLine={false} tickLine={false} />
-                                <YAxis hide />
-                                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '12px' }} />
-                                <Bar dataKey="kills" fill="#eab308" radius={[4, 4, 0, 0]} barSize={40}>
-                                    <LabelList dataKey="kills" position="top" fill="#D4D4D4" fontSize={12} fontWeight="black" />
-                                    {stats.history.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index === stats.history.length - 1 ? '#f97316' : '#eab308'} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Abates por Mapa */}
+                <div className="bg-[#0e0e11] p-6 rounded-3xl border border-gray-800 shadow-xl flex flex-col">
+                    <h3 className="text-[11px] font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><MapIcon size={16} className="text-yellow-500" /> PERFORMANCE POR MAPA</h3>
+                    <div className="space-y-4 flex-1">
+                         {stats.mapKills.length > 0 ? stats.mapKills.map((map, i) => (
+                             <div key={i} className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                     <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{map.name}</span>
+                                     <span className="text-xs font-black text-white italic">{map.count} KILLS</span>
+                                 </div>
+                                 <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
+                                     <div className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full" style={{ width: `${(map.count / (stats.kills || 1)) * 100}%` }}></div>
+                                 </div>
+                             </div>
+                         )) : (
+                             <div className="flex-1 flex items-center justify-center text-gray-700 font-black italic uppercase text-[10px]">Sem dados de mapas</div>
+                         )}
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-xl">
-                        <h3 className="text-sm font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><MapIcon size={18} className="text-yellow-500" /> Domínio por Mapa</h3>
-                        <div className="space-y-4">
-                            {Object.entries(stats.maps).length > 0 ? Object.entries(stats.maps).map(([map, killsCount]) => (
-                                <ProgressBar key={map} label={map} value={killsCount} total={stats.kills} color="from-yellow-700 to-yellow-500" />
-                            )) : <EmptyState label="Sem dados de mapa" />}
-                        </div>
-                    </div>
-
-                    <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-xl">
-                        <h3 className="text-sm font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><Disc size={18} className="text-orange-500" /> Performance por Queda (Q)</h3>
-                        <div className="space-y-4">
-                            {Object.entries(stats.quedas).length > 0 ? Object.entries(stats.quedas).map(([queda, killsCount]) => (
-                                <ProgressBar key={queda} label={`Queda ${queda}`} value={killsCount} total={stats.kills} color="from-orange-700 to-orange-500" />
-                            )) : <EmptyState label="Sem dados de queda" />}
-                        </div>
+                {/* Abates por Rodada */}
+                <div className="bg-[#0e0e11] p-6 rounded-3xl border border-gray-800 shadow-xl flex flex-col">
+                    <h3 className="text-[11px] font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><Hash size={16} className="text-blue-400" /> ABATES POR RODADA</h3>
+                    <div className="space-y-4 flex-1">
+                         {stats.roundKills.length > 0 ? stats.roundKills.map((rd, i) => (
+                             <div key={i} className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                     <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{rd.name}</span>
+                                     <span className="text-xs font-black text-white italic">{rd.count} KILLS</span>
+                                 </div>
+                                 <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
+                                     <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full" style={{ width: `${(rd.count / (stats.kills || 1)) * 100}%` }}></div>
+                                 </div>
+                             </div>
+                         )) : (
+                             <div className="flex-1 flex items-center justify-center text-gray-700 font-black italic uppercase text-[10px]">Sem registros de rodada</div>
+                         )}
                     </div>
                 </div>
-              </div>
+
+                {/* Abates por Queda (Q) */}
+                <div className="bg-[#0e0e11] p-6 rounded-3xl border border-gray-800 shadow-xl flex flex-col">
+                    <h3 className="text-[11px] font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><TargetIcon size={16} className="text-yellow-400" /> ABATES POR QUEDA (Q)</h3>
+                    <div className="space-y-4 flex-1">
+                         {stats.dropKills.length > 0 ? stats.dropKills.map((q, i) => (
+                             <div key={i} className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                     <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">PARTIDA {q.name}</span>
+                                     <span className="text-xs font-black text-yellow-400 italic">{q.count} KILLS</span>
+                                 </div>
+                                 <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
+                                     <div className="h-full bg-gradient-to-r from-yellow-700 to-yellow-500 rounded-full" style={{ width: `${(q.count / (stats.kills || 1)) * 100}%` }}></div>
+                                 </div>
+                             </div>
+                         )) : (
+                             <div className="flex-1 flex items-center justify-center text-gray-700 font-black italic uppercase text-[10px]">Sem registros de quedas</div>
+                         )}
+                    </div>
+                </div>
+
+                {/* Abates por Safe */}
+                <div className="bg-[#0e0e11] p-6 rounded-3xl border border-gray-800 shadow-xl flex flex-col">
+                    <h3 className="text-[11px] font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><Disc size={16} className="text-red-500" /> ABATES POR SAFE</h3>
+                    <div className="space-y-4 flex-1">
+                         {stats.safeKills.length > 0 ? stats.safeKills.map((safe, i) => (
+                             <div key={i} className="space-y-2">
+                                 <div className="flex justify-between items-end">
+                                     <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">SAFE {safe.name}</span>
+                                     <span className="text-xs font-black text-red-500 italic">{safe.count} KILLS</span>
+                                 </div>
+                                 <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
+                                     <div className="h-full bg-gradient-to-r from-red-600 to-red-400 rounded-full" style={{ width: `${(safe.count / (stats.safeKills.reduce((a,b) => a + b.count, 0) || 1)) * 100}%` }}></div>
+                                 </div>
+                             </div>
+                         )) : (
+                             <div className="flex-1 flex items-center justify-center text-gray-700 font-black italic uppercase text-[10px]">Sem registros no KillFeed</div>
+                         )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Loadout Competitivo */}
+            {stats.loadout && (
+                <div className="bg-[#0e0e11] p-8 rounded-3xl border border-gray-800 shadow-xl">
+                    <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
+                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-3 tracking-widest"><Zap size={18} className="text-yellow-500" /> CONFIGURAÇÃO ATUAL</h3>
+                        <span className="text-[10px] text-gray-500 font-mono italic">ÚLTIMA QUEDA: Q{stats.loadout.Q}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-4 justify-between">
+                         <PremiumLoadoutCard title="ATIVA" name={stats.loadout.Hab1} img={stats.loadout.hab1Img} highlight />
+                         <PremiumLoadoutCard title="HAB 2" name={stats.loadout.Hab2} img={stats.loadout.hab2Img} />
+                         <PremiumLoadoutCard title="HAB 3" name={stats.loadout.Hab3} img={stats.loadout.hab3Img} />
+                         <PremiumLoadoutCard title="HAB 4" name={stats.loadout.Hab4} img={stats.loadout.hab4Img} />
+                         <PremiumLoadoutCard title="PET" name={stats.loadout.Pet} img={stats.loadout.petImg} />
+                         <PremiumLoadoutCard title="ITEM" name={stats.loadout.Item} img={stats.loadout.itemImg} />
+                    </div>
+                </div>
             )}
         </div>
     );
 };
 
 const MetricCard = ({ label, value, color }: any) => (
-    <div className="text-center px-6 py-4 rounded-2xl bg-black/60 border border-white/5 backdrop-blur-sm">
-        <span className={`block text-3xl font-black ${color}`}>{value}</span>
-        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{label}</span>
-    </div>
-);
-
-const ProgressBar = ({ label, value, total, color }: any) => (
-    <div>
-        <div className="flex justify-between text-[11px] mb-2 font-black uppercase">
-            <span className="text-gray-400 italic tracking-wide">{label}</span>
-            <span className="text-white font-mono">{value} Abates</span>
-        </div>
-        <div className="w-full bg-black rounded-full h-2.5 overflow-hidden border border-white/5 shadow-inner">
-            <div className={`bg-gradient-to-r ${color} h-full transition-all duration-700 ease-out`} style={{ width: `${(Number(value) / Math.max(total, 1)) * 100}%` }}></div>
-        </div>
-    </div>
-);
-
-const EmptyState = ({ label }: { label: string }) => (
-    <div className="text-center text-gray-700 py-6 uppercase font-black italic text-xs tracking-widest border border-dashed border-gray-800 rounded-xl">
-        {label}
+    <div className="text-center px-6 py-4 rounded-2xl bg-black/60 border border-white/5 shadow-inner min-w-[110px] flex flex-col justify-center">
+        <span className={`block text-3xl font-black ${color} italic leading-none`}>{value}</span>
+        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-2">{label}</span>
     </div>
 );
 

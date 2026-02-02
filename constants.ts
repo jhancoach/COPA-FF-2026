@@ -1,11 +1,12 @@
 
 export const CSV_URLS = {
   fDetalhes: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=1560720549&single=true&output=csv",
-  fPersonagens: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1045005047",
+  fPersonagens: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=1045005047&single=true&output=csv",
   fPlayersDados: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=1193858435&single=true&output=csv",
   fKillFeed: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=1663256849&single=true&output=csv",
   fKilldia: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?output=csv",
   dTime: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?gid=2039387100&single=true&output=csv",
+  dPlayer: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRgoxT-XLG3ZW9PjezGA9fujbMBf7VX55uspeTVIoCPi4D4i5bz5uq5vyIGBlEaaOiI1qvq9f-Hj_PK/pub?output=csv",
   dArma: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=1006087866",
   dSafe: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=998190335",
   dHab1: "https://docs.google.com/spreadsheets/d/1aG4Gl14KUL93l_ovqhA_4Dx4P-BBG-eewcy1OAJ_L4M/export?format=csv&gid=602850523",
@@ -19,16 +20,16 @@ export const CSV_URLS = {
 export const LOGO_URL = "https://i.ibb.co/V0sb4bxX/image.png";
 
 export const DEFAULT_CONFIG = {
-  titlePart1: "COPA FF",
-  titlePart2: "2026",
-  subtitle: "Elite Competitiva Free Fire"
+  titlePart1: "MUNDIAL",
+  titlePart2: "2025",
+  subtitle: "Dashboard Competitivo Free Fire"
 };
 
 export const THEME_COLORS = {
   background: "#0a050a",
   accentPurple: "#4b164c",
-  primary: "#facc15", // Yellow/Gold
-  secondary: "#f97316", // Orange
-  tertiary: "#701a75", // Deep Purple
+  primary: "#facc15",
+  secondary: "#f97316",
+  tertiary: "#701a75",
   text: "#F3F4F6"
 };

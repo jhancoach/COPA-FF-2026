@@ -67,15 +67,13 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, setFilters, options }) =
 
       <div className={`${isOpen ? 'block' : 'hidden'} md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4`}>
         {/* Multi-Select for Players - Takes up 2 cols on lg */}
-        {options.players && options.players.length > 0 && (
-           <div className="lg:col-span-2">
-              <MultiSelectPlayer 
+        <div className="lg:col-span-2">
+            <MultiSelectPlayer 
                 options={options.players} 
                 selected={filters.players} 
                 onChange={(newSelected) => setFilters(prev => ({...prev, players: newSelected}))}
-              />
-           </div>
-        )}
+            />
+        </div>
 
         {/* Use Searchable Selects for fields that might have many options */}
         {options.teams && options.teams.length > 0 && <SearchableSelect label="Time" value={filters.team} options={options.teams} onChange={(v) => handleChange('team', v)} />}
@@ -198,10 +196,10 @@ const MultiSelectPlayer = ({ options, selected, onChange }: { options: string[],
         <div className="flex flex-col relative" ref={wrapperRef}>
             <label className="text-[10px] text-gray-500 uppercase mb-1 font-bold tracking-wider">Jogadores</label>
             <div 
-                className="bg-black text-gray-300 text-xs rounded-lg border border-gray-700 px-3 py-2.5 flex justify-between items-center cursor-pointer hover:border-yellow-500 transition-colors"
+                className="bg-black text-white text-xs rounded-lg border border-gray-700 px-3 py-2.5 flex justify-between items-center cursor-pointer hover:border-yellow-500 transition-colors"
                 onClick={() => setOpen(!open)}
             >
-                <span className="truncate font-medium">
+                <span className="truncate font-black">
                     {selected.length === 0 ? 'Selecionar Jogadores...' : `${selected.length} selecionado(s)`}
                 </span>
                 <Search size={14} className="text-gray-500" />
@@ -211,33 +209,33 @@ const MultiSelectPlayer = ({ options, selected, onChange }: { options: string[],
                 <div className="absolute top-full left-0 w-full mt-1 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-xl z-50 max-h-60 overflow-hidden flex flex-col">
                     <input 
                         type="text" 
-                        placeholder="Buscar..." 
-                        className="p-2 bg-black text-white border-b border-gray-700 text-xs focus:outline-none placeholder-gray-600"
+                        placeholder="Pesquisar nome..." 
+                        className="p-3 bg-black text-white border-b border-gray-700 text-sm focus:outline-none placeholder-gray-600 font-bold"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         autoFocus
                     />
-                    <div className="overflow-y-auto flex-1 custom-scrollbar">
+                    <div className="overflow-y-auto flex-1 custom-scrollbar bg-black">
                         {filteredOptions.map(opt => (
                             <div 
                                 key={opt} 
-                                className="px-3 py-2 hover:bg-yellow-900/20 cursor-pointer flex items-center justify-between text-xs text-gray-300 hover:text-yellow-100"
+                                className="px-4 py-3 hover:bg-yellow-500/10 cursor-pointer flex items-center justify-between text-xs text-white font-bold border-b border-white/5 last:border-0"
                                 onClick={() => toggleOption(opt)}
                             >
-                                <span>{opt}</span>
-                                {selected.includes(opt) && <Check size={14} className="text-yellow-500" />}
+                                <span className="uppercase italic tracking-tighter">{opt}</span>
+                                {selected.includes(opt) && <Check size={16} className="text-yellow-500" />}
                             </div>
                         ))}
-                        {filteredOptions.length === 0 && <div className="p-3 text-gray-500 text-xs text-center">Nenhum jogador encontrado</div>}
+                        {filteredOptions.length === 0 && <div className="p-4 text-gray-500 text-xs text-center font-mono italic">Nenhum competidor encontrado</div>}
                     </div>
                 </div>
             )}
             {selected.length > 0 && (
                  <div className="flex flex-wrap gap-1 mt-2">
                     {selected.map(s => (
-                        <span key={s} className="text-[10px] bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded-full flex items-center gap-1 border border-yellow-500/30">
+                        <span key={s} className="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded-full flex items-center gap-1 font-black uppercase italic shadow-sm">
                             {s}
-                            <X size={10} className="cursor-pointer hover:text-white" onClick={() => toggleOption(s)}/>
+                            <X size={12} className="cursor-pointer hover:text-red-900" onClick={() => toggleOption(s)}/>
                         </span>
                     ))}
                  </div>

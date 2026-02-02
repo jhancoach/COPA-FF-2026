@@ -5,8 +5,8 @@ export interface PlayerData {
   S: string;      
   Abates: string;
   MAPA?: string;
-  RD?: string; // Rodada
-  Q?: string;  // Queda
+  RD?: string;
+  Q?: string;
 }
 
 export interface KillFeed {
@@ -15,8 +15,8 @@ export interface KillFeed {
   ARMA: string;
   CONFRONTO: string;
   MAPA: string;
-  RD: string; // Rodada
-  Q: string;  // Queda
+  RD: string;
+  Q: string;
   SAFE: string;
   Tempo?: string;
 }
@@ -46,7 +46,8 @@ export interface CharacterData {
   Rd: string;        
   Confronto: string; 
   Mapa: string;      
-  S: string;         
+  S: string;  
+  Q: string;       
 }
 
 export interface TeamReference {
@@ -69,30 +70,27 @@ export interface GenericDimData {
   IMG: string;
 }
 
-// Configuration Interface
 export interface AppConfig {
   titlePart1: string;
   titlePart2: string;
   subtitle: string;
 }
 
-// Global State Interface
 export interface DashboardData {
   players: PlayerData[];
   killFeed: KillFeed[];
   details: MatchDetails[];
   characters: CharacterData[];
   teamsReference: TeamReference[];
+  playersDimension: GenericDimData[];
   weapons: WeaponData[];
   safes: SafeData[];
-  // Dimensions
   hab1: GenericDimData[];
   hab2: GenericDimData[];
   hab3: GenericDimData[];
   hab4: GenericDimData[];
   pets: GenericDimData[];
   items: GenericDimData[];
-  
   loading: boolean;
   lastUpdated: Date | null;
 }
@@ -100,16 +98,14 @@ export interface DashboardData {
 export interface TeamStats {
   name: string;
   image?: string;
-  s: number; // Partidas
-  b: number; // Booyahs
-  ptsc: number; // Pontos de colocação
-  abts: number; // Abates
-  pts: number; // Pontos Totais
-  
+  s: number;
+  b: number;
+  ptsc: number;
+  abts: number;
+  pts: number;
   avgAbts: number;
   avgPts: number;
   avgPtsc: number;
-  
   percentPos: number;
   percentAbts: number;
 }
