@@ -1,349 +1,336 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { DashboardData } from '../types';
+import { DashboardData, TeamStats, PlayerData } from '../types';
 import { calculateTeamStats } from '../services/dataService';
-import { Shield, TrendingUp, Crosshair, Users, Map as MapIcon, ArrowLeft, Trophy, Target } from 'lucide-react';
+import { Shield, TrendingUp, Crosshair, Users, Map as MapIcon, ArrowLeft, Trophy, Target, Award, User, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, LabelList, PieChart, Pie, Cell, Legend } from 'recharts';
 import FilterBar from '../components/FilterBar';
 
 interface TeamsProps {
   data: DashboardData;
+  globalFilters: any;
+  setGlobalFilters: any;
 }
 
-// Gold, Orange, Red, Blue theme for charts
 const COLORS = ['#EAB308', '#F97316', '#EF4444', '#3B82F6', '#A855F7', '#10B981', '#6366F1', '#EC4899'];
 
-const Teams: React.FC<TeamsProps> = ({ data }) => {
+const Teams: React.FC<TeamsProps> = ({ data, globalFilters, setGlobalFilters }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [filters, setFilters] = useState({
-     team: 'All', players: [], weapon: 'All', safe: 'All', map: 'All', round: 'All', confrontation: 'All'
-  });
 
-  // Check for navigation state (e.g. from Leaderboard click)
   useEffect(() => {
       if (location.state?.team) {
-          setFilters(prev => ({ ...prev, team: location.state.team }));
-          // Clear state so browser refresh doesn't get stuck (optional, but good UX)
+          setGlobalFilters((prev: any) => ({ ...prev, team: location.state.team }));
           window.history.replaceState({}, document.title);
       }
-  }, [location.state]);
+  }, [location.state, setGlobalFilters]);
 
-  const allTeamStats = useMemo(() => calculateTeamStats(data), [data]);
+  const normalize = (val: string | undefined) => (val || '').trim().toUpperCase();
+
+  // Estatísticas dos Times filtradas
+  const filteredTeamStats = useMemo(() => {
+    const filteredDetails = data.details.filter(d => {
+      if (globalFilters.map !== 'All' && normalize(d.MAPA) !== normalize(globalFilters.map)) return false;
+      if (globalFilters.rodada !== 'All' && normalize(d.RD) !== normalize(globalFilters.rodada)) return false;
+      if (globalFilters.queda !== 'All' && normalize(d.Q) !== normalize(globalFilters.queda)) return false;
+      return true;
+    });
+    return calculateTeamStats({ ...data, details: filteredDetails });
+  }, [data, globalFilters]);
   
   const filterOptions = useMemo(() => ({
-    teams: allTeamStats.map(s => s.name).sort(),
-    players: [], weapons: [], safes: [], maps: [], rounds: [], confrontations: []
-  }), [allTeamStats]);
+    teams: Array.from(new Set(data.players.map(p => p.TIME))).filter(Boolean).sort(),
+    players: [], 
+    weapons: [], 
+    safes: [], 
+    maps: Array.from(new Set(data.players.map(p => p.MAPA))).filter(Boolean).sort(),
+    rounds: Array.from(new Set(data.players.map(p => p.RD))).filter(Boolean).sort(),
+    quedas: Array.from(new Set(data.players.map(p => p.Q))).filter(Boolean).sort(),
+    confrontations: []
+  }), [data.players]);
 
-  // Handle selecting a team (either via filter bar or clicking a card)
-  const selectedTeamName = filters.team !== 'All' ? filters.team : null;
-  const selectedTeamStats = selectedTeamName ? allTeamStats.find(t => t.name === selectedTeamName) : null;
+  const selectedTeamName = globalFilters.team !== 'All' ? globalFilters.team : null;
+  const selectedTeamStats = selectedTeamName ? filteredTeamStats.find(t => t.name === selectedTeamName) : null;
 
-  // --- DERIVED DATA FOR DETAILED VIEW ---
+  // --- ELENCO E CONTRIBUIÇÃO (Baseado em fPlayersDados e Filtros Globais) ---
+  const teamRosterData = useMemo(() => {
+      const rosters: Record<string, { name: string, kills: number, matches: number, avg: string }[]> = {};
+      
+      const filterMap = normalize(globalFilters.map);
+      const filterRd = normalize(globalFilters.rodada);
+      const filterQ = normalize(globalFilters.queda);
 
-  // 1. Chart Data: Points/Kills Evolution per Round
+      // Filtra fPlayersDados
+      const filteredPlayers = data.players.filter(p => {
+          if (globalFilters.map !== 'All' && normalize(p.MAPA) !== filterMap) return false;
+          if (globalFilters.rodada !== 'All' && normalize(p.RD) !== filterRd) return false;
+          if (globalFilters.queda !== 'All' && normalize(p.Q) !== filterQ) return false;
+          return true;
+      });
+
+      filteredPlayers.forEach(p => {
+          if (!p.TIME) return;
+          if (!rosters[p.TIME]) rosters[p.TIME] = [];
+          
+          let player = rosters[p.TIME].find(pl => pl.name === p.PLAYER);
+          if (!player) {
+              player = { name: p.PLAYER, kills: 0, matches: 0, avg: '0.00' };
+              rosters[p.TIME].push(player);
+          }
+          player.kills += parseInt(p.Abates || '0');
+          player.matches += parseInt(p.S || '0');
+      });
+
+      // Calcula médias e ordena
+      Object.keys(rosters).forEach(t => {
+          rosters[t].forEach(p => {
+              p.avg = p.matches > 0 ? (p.kills / p.matches).toFixed(2) : '0.00';
+          });
+          rosters[t].sort((a, b) => b.kills - a.kills);
+      });
+
+      return rosters;
+  }, [data.players, globalFilters]);
+
+  // Evolução do Time Selecionado
   const evolutionData = useMemo(() => {
      if (!selectedTeamName) return [];
      const roundsMap = new Map<string, { rd: string, pts: number, kills: number }>();
-
-     data.details.forEach(d => {
-         if (d.TIME !== selectedTeamName) return;
+     data.details.filter(d => d.TIME === selectedTeamName).forEach(d => {
          if (!d.RD) return;
-
-         const pts = parseInt(d.PTS) || 0;
-         const kills = parseInt(d.ABTS) || 0;
-
-         if (!roundsMap.has(d.RD)) {
-             roundsMap.set(d.RD, { rd: d.RD, pts: 0, kills: 0 });
-         }
+         if (!roundsMap.has(d.RD)) roundsMap.set(d.RD, { rd: d.RD, pts: 0, kills: 0 });
          const r = roundsMap.get(d.RD)!;
-         r.pts += pts;
-         r.kills += kills;
+         r.pts += parseInt(d.PTS) || 0;
+         r.kills += parseInt(d.ABTS) || 0;
      });
-
-     return Array.from(roundsMap.values()).sort((a,b) => {
-         const numA = parseInt(a.rd.replace(/\D/g, ''));
-         const numB = parseInt(b.rd.replace(/\D/g, ''));
-         return (numA || 0) - (numB || 0) || a.rd.localeCompare(b.rd);
-     });
+     return Array.from(roundsMap.values()).sort((a,b) => (parseInt(a.rd.replace(/\D/g, '')) || 0) - (parseInt(b.rd.replace(/\D/g, '')) || 0));
   }, [data.details, selectedTeamName]);
-
-  // 2. Player Roster & Kill Contribution
-  const { roster, killDistribution } = useMemo(() => {
-      if (!selectedTeamName) return { roster: [], killDistribution: [] };
-
-      // Aggregate from fPlayersDados
-      const playersMap = new Map<string, { name: string, kills: number, matches: number }>();
-      
-      data.players.filter(p => p.TIME === selectedTeamName).forEach(p => {
-          if (!playersMap.has(p.PLAYER)) {
-              playersMap.set(p.PLAYER, { name: p.PLAYER, kills: 0, matches: 0 });
-          }
-          const pm = playersMap.get(p.PLAYER)!;
-          pm.kills += parseInt(p.Abates || '0');
-          pm.matches += parseInt(p.S || '0');
-      });
-
-      const rosterList = Array.from(playersMap.values()).sort((a,b) => b.kills - a.kills);
-      
-      const chartData = rosterList.map(p => ({
-          name: p.name,
-          value: p.kills
-      })).filter(p => p.value > 0);
-
-      return { roster: rosterList, killDistribution: chartData };
-  }, [data.players, selectedTeamName]);
-
-  // 3. Map Performance
-  const mapStats = useMemo(() => {
-      if (!selectedTeamName) return [];
-      const stats = new Map<string, { map: string, pts: number, kills: number, booyahs: number, matches: number }>();
-
-      data.details.filter(d => d.TIME === selectedTeamName).forEach(d => {
-          if (!d.MAPA) return;
-          if (!stats.has(d.MAPA)) {
-              stats.set(d.MAPA, { map: d.MAPA, pts: 0, kills: 0, booyahs: 0, matches: 0 });
-          }
-          const m = stats.get(d.MAPA)!;
-          m.pts += parseInt(d.PTS || '0');
-          m.kills += parseInt(d.ABTS || '0');
-          m.booyahs += parseInt(d.B || '0');
-          m.matches += parseInt(d.S || '0');
-      });
-
-      return Array.from(stats.values()).sort((a,b) => b.pts - a.pts);
-  }, [data.details, selectedTeamName]);
-
-  const totalRosterKills = useMemo(() => roster.reduce((acc, p) => acc + p.kills, 0), [roster]);
 
   const handlePlayerClick = (playerName: string) => {
     navigate('/players', { state: { player: playerName } });
   };
 
-  if (data.loading) return <div className="text-center py-20 animate-pulse text-yellow-500 font-bold">CARREGANDO DADOS DAS EQUIPES...</div>;
+  if (data.loading) return <div className="text-center py-20 animate-pulse text-yellow-500 font-bold uppercase italic tracking-widest">Sincronizando Elencos...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
         
-        {/* Top Controls */}
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-            <FilterBar 
-                filters={filters as any} 
-                setFilters={setFilters as any} 
-                options={filterOptions} 
-            />
+        {/* Filtros */}
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+            <FilterBar filters={globalFilters} setFilters={setGlobalFilters} options={filterOptions} />
             {selectedTeamName && (
                 <button 
-                    onClick={() => setFilters(prev => ({...prev, team: 'All'}))}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm font-bold uppercase tracking-wide border border-gray-600"
+                    onClick={() => setGlobalFilters((prev: any) => ({...prev, team: 'All'}))}
+                    className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-yellow-500 rounded-xl transition-all text-xs font-black uppercase tracking-widest border border-white/5"
                 >
-                    <ArrowLeft size={16} /> Voltar para Galeria
+                    <ArrowLeft size={16} /> Ver Todos os Times
                 </button>
             )}
         </div>
 
-        {/* --- VIEW 1: DETAILED TEAM REPORT --- */}
+        {/* --- VIEW: PERFIL DETALHADO DO TIME --- */}
         {selectedTeamName && selectedTeamStats ? (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="space-y-8 animate-in fade-in duration-500">
                 
-                {/* Hero Section */}
-                <div className="bg-[#1a1a1a] rounded-2xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-                         <Trophy size={200} className="text-yellow-600/20" />
+                {/* Header Premium */}
+                <div className="bg-[#1a1a1a] rounded-3xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-black">
+                    <div className="absolute top-0 right-0 p-12 opacity-5">
+                         <Shield size={220} className="text-yellow-500" />
                     </div>
-                    <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                         <div className="w-32 h-32 md:w-40 md:h-40 bg-black rounded-full border-4 border-yellow-500/50 flex items-center justify-center overflow-hidden shadow-lg p-2">
+                    <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
+                         <div className="w-40 h-40 bg-black rounded-3xl border-2 border-yellow-500/30 flex items-center justify-center overflow-hidden shadow-2xl p-4 rotate-3 hover:rotate-0 transition-transform duration-500">
                              {selectedTeamStats.image ? (
                                  <img src={selectedTeamStats.image} alt={selectedTeamStats.name} className="w-full h-full object-contain" />
                              ) : (
-                                 <Trophy size={64} className="text-gray-600" />
+                                 <Shield size={80} className="text-gray-800" />
                              )}
                          </div>
-                         <div className="text-center md:text-left space-y-2">
-                             <h1 className="text-4xl md:text-5xl font-black italic text-white tracking-tight uppercase">{selectedTeamStats.name}</h1>
-                             <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4">
-                                 <Badge label="Pontos Totais" value={selectedTeamStats.pts} color="bg-yellow-500 text-black" />
-                                 <Badge label="Booyahs" value={selectedTeamStats.b} color="bg-orange-500" icon={<Trophy size={14}/>} />
-                                 <Badge label="Abates" value={selectedTeamStats.abts} color="bg-red-600" icon={<Crosshair size={14}/>} />
-                                 <Badge label="Partidas" value={selectedTeamStats.s} color="bg-gray-800" />
+                         <div className="text-center md:text-left space-y-4">
+                             <div className="flex items-center gap-3 justify-center md:justify-start">
+                                <span className="bg-yellow-500 text-black text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">Pro League</span>
+                                <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">DADOS FILTRADOS</span>
+                             </div>
+                             <h1 className="text-5xl md:text-7xl font-black italic text-white tracking-tighter uppercase leading-none">{selectedTeamStats.name}</h1>
+                             <div className="flex flex-wrap justify-center md:justify-start gap-4">
+                                 <StatBadge label="Pontos" value={selectedTeamStats.pts} color="text-yellow-500" />
+                                 <StatBadge label="Vitórias" value={selectedTeamStats.b} color="text-orange-500" />
+                                 <StatBadge label="Kills" value={selectedTeamStats.abts} color="text-red-500" />
+                                 <StatBadge label="Média Equipe" value={selectedTeamStats.avgAbts} color="text-blue-500" />
                              </div>
                          </div>
                     </div>
                 </div>
 
-                {/* Main Stats Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     
-                    {/* Column 1: Charts (Evolution + Contribution) - Takes 2 cols */}
-                    <div className="lg:col-span-2 space-y-6">
-                        
-                        {/* Points Evolution */}
-                        <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-lg">
-                            <h3 className="text-white font-bold mb-4 flex items-center gap-2 uppercase">
-                                <TrendingUp size={18} className="text-yellow-500"/> 
-                                Evolução de Pontos e Abates por Rodada
+                    {/* Evolução e Cards (7 colunas) */}
+                    <div className="lg:col-span-7 space-y-8">
+                        <div className="bg-[#1a1a1a] p-8 rounded-3xl border border-gray-800 shadow-xl">
+                            <h3 className="text-white font-black text-sm mb-8 flex items-center gap-3 uppercase tracking-widest">
+                                <TrendingUp size={20} className="text-yellow-500"/> Histórico de Performance
                             </h3>
-                            <div className="h-72">
+                            <div className="h-80">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={evolutionData} margin={{top: 20, right: 10, left: -20, bottom: 0}}>
-                                        <XAxis dataKey="rd" stroke="#525252" fontSize={10} tickLine={false} axisLine={false} />
-                                        <Tooltip 
-                                            contentStyle={{ backgroundColor: '#171717', border: '1px solid #404040', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#E5E7EB' }}
-                                            cursor={{fill: 'rgba(234, 179, 8, 0.1)'}}
-                                        />
-                                        <Legend />
-                                        <Bar dataKey="pts" fill="#EAB308" radius={[2, 2, 0, 0]} name="Pontos">
-                                            <LabelList dataKey="pts" position="top" fill="#D4D4D4" fontSize={10} fontWeight="bold" />
-                                        </Bar>
-                                        <Bar dataKey="kills" fill="#EF4444" radius={[2, 2, 0, 0]} name="Abates">
-                                             <LabelList dataKey="kills" position="top" fill="#D4D4D4" fontSize={10} fontWeight="bold" />
+                                    <BarChart data={evolutionData}>
+                                        <XAxis dataKey="rd" stroke="#444" fontSize={11} fontWeight="bold" axisLine={false} tickLine={false} />
+                                        <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '15px' }} />
+                                        <Bar dataKey="pts" fill="#EAB308" radius={[6, 6, 0, 0]} barSize={45}>
+                                            <LabelList dataKey="pts" position="top" fill="#fff" fontSize={12} fontWeight="900" />
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
 
-                         {/* Map Stats Table */}
-                        <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 overflow-hidden">
-                             <div className="p-4 bg-black border-b border-gray-800">
-                                 <h3 className="text-white font-bold flex items-center gap-2 uppercase tracking-wide"><MapIcon size={18} className="text-green-500"/> Desempenho por Mapa</h3>
-                             </div>
-                             <div className="overflow-x-auto">
-                                 <table className="w-full text-sm text-left">
-                                     <thead className="text-xs text-gray-500 uppercase bg-black/50">
-                                         <tr>
-                                             <th className="px-4 py-3">Mapa</th>
-                                             <th className="px-4 py-3 text-center">Jogos</th>
-                                             <th className="px-4 py-3 text-center">Booyahs</th>
-                                             <th className="px-4 py-3 text-center">Abates</th>
-                                             <th className="px-4 py-3 text-center">Pontos</th>
-                                             <th className="px-4 py-3 text-center">Média</th>
-                                         </tr>
-                                     </thead>
-                                     <tbody className="divide-y divide-gray-800">
-                                         {mapStats.map((m, i) => (
-                                             <tr key={i} className="hover:bg-yellow-900/10 transition-colors">
-                                                 <td className="px-4 py-3 font-bold text-white uppercase">{m.map}</td>
-                                                 <td className="px-4 py-3 text-center text-gray-400">{m.matches}</td>
-                                                 <td className="px-4 py-3 text-center text-yellow-500 font-black">{m.booyahs}</td>
-                                                 <td className="px-4 py-3 text-center text-red-500 font-bold">{m.kills}</td>
-                                                 <td className="px-4 py-3 text-center text-white font-bold">{m.pts}</td>
-                                                 <td className="px-4 py-3 text-center text-gray-300 font-mono">{(m.pts / m.matches).toFixed(1)}</td>
-                                             </tr>
-                                         ))}
-                                     </tbody>
-                                 </table>
-                             </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-gradient-to-br from-yellow-900/10 to-black p-6 rounded-3xl border border-yellow-500/10">
+                                <Award className="text-yellow-500 mb-4" size={32} />
+                                <h4 className="text-white font-black uppercase italic text-lg">Top Player do Período</h4>
+                                <div className="mt-6 flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-full bg-yellow-500 flex items-center justify-center text-black font-black text-xl">
+                                        {teamRosterData[selectedTeamName]?.[0]?.name.substring(0,1) || '?'}
+                                    </div>
+                                    <div>
+                                        <span className="block text-white font-black text-xl uppercase italic">{teamRosterData[selectedTeamName]?.[0]?.name || '---'}</span>
+                                        <span className="text-yellow-500 font-mono font-bold">{teamRosterData[selectedTeamName]?.[0]?.kills || 0} Abates</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-gradient-to-br from-blue-900/10 to-black p-6 rounded-3xl border border-blue-500/10 text-center flex flex-col items-center justify-center">
+                                <div className="text-5xl font-black text-white italic">{selectedTeamStats.s}</div>
+                                <div className="text-xs text-gray-400 font-bold uppercase mt-2 tracking-widest">Partidas Disputadas</div>
+                            </div>
                         </div>
-
                     </div>
 
-                    {/* Column 2: Roster & Distribution - Takes 1 col */}
-                    <div className="space-y-6">
-                        
-                        {/* Kill Contribution Chart */}
-                        <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-lg flex flex-col items-center">
-                            <h3 className="text-white font-bold mb-2 flex items-center gap-2 w-full uppercase">
-                                <Target size={18} className="text-red-500"/> 
-                                Contribuição de Abates
+                    {/* Elenco e Distribuição (5 colunas) */}
+                    <div className="lg:col-span-5 space-y-8">
+                        {/* Pizza de Kills */}
+                        <div className="bg-[#1a1a1a] p-8 rounded-3xl border border-gray-800 shadow-xl">
+                            <h3 className="text-white font-black text-sm mb-6 flex items-center gap-3 uppercase tracking-widest">
+                                <Target size={20} className="text-red-500"/> % Contribuição de Abates
                             </h3>
-                            <div className="h-64 w-full">
+                            <div className="h-64">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
-                                            data={killDistribution}
-                                            cx="50%"
-                                            cy="50%"
+                                            data={teamRosterData[selectedTeamName]?.map(p => ({ name: p.name, value: p.kills }))}
                                             innerRadius={60}
-                                            outerRadius={80}
-                                            paddingAngle={5}
+                                            outerRadius={90}
+                                            paddingAngle={8}
                                             dataKey="value"
                                         >
-                                            {killDistribution.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#1a1a1a" strokeWidth={2} />
+                                            {teamRosterData[selectedTeamName]?.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip contentStyle={{ backgroundColor: '#171717', borderRadius: '8px', border: '1px solid #404040' }} itemStyle={{color: '#fff'}} />
-                                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                        <Tooltip />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
 
-                        {/* Player Roster List */}
-                        <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 overflow-hidden shadow-lg">
-                             <div className="p-4 bg-black border-b border-gray-800">
-                                 <h3 className="text-white font-bold flex items-center gap-2 uppercase tracking-wide"><Users size={18} className="text-blue-500"/> Elenco (Roster)</h3>
+                        {/* ELENCO DETALHADO (Baseado em fPlayersDados) */}
+                        <div className="bg-black rounded-3xl border border-gray-800 overflow-hidden shadow-2xl">
+                             <div className="p-6 bg-[#1a1a1a] border-b border-gray-800">
+                                 <h3 className="text-white font-black text-sm flex items-center gap-3 uppercase tracking-widest">
+                                    <Users size={20} className="text-blue-500"/> Elenco (Estatísticas fPlayersDados)
+                                 </h3>
                              </div>
-                             <div className="divide-y divide-gray-800">
-                                 {roster.map((player, idx) => {
-                                     const percent = totalRosterKills > 0 ? ((player.kills / totalRosterKills) * 100).toFixed(1) : "0.0";
+                             <div className="divide-y divide-gray-900">
+                                 {teamRosterData[selectedTeamName]?.map((player, idx) => {
+                                     const totalKills = teamRosterData[selectedTeamName].reduce((acc, curr) => acc + curr.kills, 0) || 1;
+                                     const percent = ((player.kills / totalKills) * 100).toFixed(1);
                                      return (
-                                     <div 
-                                        key={idx} 
-                                        onClick={() => handlePlayerClick(player.name)}
-                                        className="p-3 flex items-center justify-between hover:bg-yellow-900/10 hover:border-l-2 hover:border-yellow-500 transition-all cursor-pointer group"
-                                     >
-                                         <div className="flex items-center gap-3">
-                                             <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-xs font-bold text-gray-500 border border-gray-800 group-hover:border-yellow-500/50">
-                                                 {player.name.substring(0,2).toUpperCase()}
-                                             </div>
-                                             <div>
-                                                 <div className="text-sm font-bold text-white group-hover:text-yellow-400 transition-colors uppercase">{player.name}</div>
-                                                 <div className="text-[10px] text-gray-500">{player.matches} Partidas</div>
-                                             </div>
+                                         <div 
+                                            key={idx} 
+                                            onClick={() => handlePlayerClick(player.name)}
+                                            className="p-5 flex flex-col gap-3 hover:bg-white/5 transition-all cursor-pointer group"
+                                         >
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-xl bg-gray-900 border border-gray-800 flex items-center justify-center font-black text-gray-500 group-hover:border-yellow-500 transition-colors">
+                                                        {player.name.substring(0,2).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-white font-black text-sm uppercase italic group-hover:text-yellow-500 transition-colors">{player.name}</span>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">{player.matches} Jogos</span>
+                                                            <span className="text-[10px] text-blue-400 font-black italic">AVG: {player.avg}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="block text-red-500 font-black text-lg leading-none">{player.kills}</span>
+                                                    <span className="text-[9px] text-gray-500 font-bold uppercase">Kills</span>
+                                                </div>
+                                            </div>
+                                            <div className="w-full bg-gray-900 h-1.5 rounded-full overflow-hidden flex items-center">
+                                                <div 
+                                                    className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full transition-all duration-1000"
+                                                    style={{ width: `${percent}%` }}
+                                                ></div>
+                                            </div>
+                                            <div className="flex justify-between text-[9px] font-black uppercase tracking-tighter">
+                                                <span className="text-gray-600">Impacto no Time</span>
+                                                <span className="text-yellow-500">{percent}%</span>
+                                            </div>
                                          </div>
-                                         <div className="text-right">
-                                             <div className="text-sm font-black text-red-500">{player.kills} Kills</div>
-                                             <div className="text-[10px] text-gray-500 font-mono">KD: {player.matches > 0 ? (player.kills / player.matches).toFixed(2) : '0.00'}</div>
-                                             <div className="text-[10px] text-yellow-500 font-bold">{percent}% da Equipe</div>
-                                         </div>
-                                     </div>
-                                 )})}
+                                     );
+                                 })}
+                                 {(!teamRosterData[selectedTeamName] || teamRosterData[selectedTeamName].length === 0) && (
+                                     <div className="p-10 text-center text-gray-600 font-mono uppercase text-xs">Nenhum jogador encontrado com os filtros atuais</div>
+                                 )}
                              </div>
                         </div>
-
                     </div>
                 </div>
-
             </div>
         ) : (
             
-        /* --- VIEW 2: TEAM GALLERY (GRID) --- */
+        /* --- VIEW: GALERIA DE TIMES (GRID) --- */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in duration-500">
-            {allTeamStats.filter(t => filters.team === 'All' || t.name === filters.team).map(team => (
+            {filteredTeamStats.map(team => (
                 <div 
                     key={team.name} 
-                    onClick={() => setFilters(prev => ({...prev, team: team.name}))}
-                    className="bg-[#1a1a1a] rounded-2xl p-6 border border-gray-800 shadow-lg hover:border-yellow-500/50 hover:shadow-yellow-500/10 transition-all cursor-pointer group relative overflow-hidden"
+                    onClick={() => setGlobalFilters((prev: any) => ({...prev, team: team.name}))}
+                    className="bg-[#1a1a1a] rounded-3xl p-6 border border-gray-800 shadow-xl hover:border-yellow-500/40 hover:translate-y-[-5px] transition-all cursor-pointer group relative overflow-hidden flex flex-col"
                 >
-                    <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ArrowLeft className="rotate-180 text-yellow-500" size={20} />
-                    </div>
-
-                    <div className="flex flex-col items-center mb-6">
-                         <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center border border-gray-800 overflow-hidden mb-4 group-hover:scale-110 group-hover:border-yellow-500 transition-all duration-300 p-1">
-                            {team.image ? (
-                                <img src={team.image} alt={team.name} className="w-full h-full object-contain" />
-                            ) : (
-                                <Trophy className="text-gray-700" size={32} />
-                            )}
-                         </div>
-                         <h3 className="text-xl font-black italic text-white text-center group-hover:text-yellow-400 transition-colors uppercase">{team.name}</h3>
-                         <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider font-bold">{team.s} Jogos</p>
-                    </div>
-
-                    <div className="space-y-3">
-                        <StatRow label="Pontos Totais" value={team.pts} color="text-yellow-500" />
-                        <StatRow label="Booyahs" value={team.b} color="text-orange-500" />
-                        <StatRow label="Abates" value={team.abts} color="text-red-500" />
-                        <div className="border-t border-gray-800 my-2 pt-2 grid grid-cols-3 gap-1 text-center">
-                            <MiniStat label="Avg Pts" value={team.avgPts} />
-                            <MiniStat label="Avg Kill" value={team.avgAbts} />
-                            <MiniStat label="PTS/C" value={team.ptsc} />
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center border border-gray-800 p-2 group-hover:scale-110 group-hover:border-yellow-500 transition-all">
+                            {team.image ? <img src={team.image} alt={team.name} className="w-full h-full object-contain" /> : <Shield className="text-gray-800" size={24} />}
                         </div>
+                        <div className="text-right">
+                            <h3 className="text-xl font-black italic text-white uppercase leading-none group-hover:text-yellow-500 transition-colors">{team.name}</h3>
+                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1 block">{team.pts} Pontos</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 flex-1">
+                        <div className="bg-black/40 rounded-2xl p-4 border border-white/5">
+                            <span className="text-[9px] text-gray-600 font-black uppercase tracking-widest mb-3 block border-b border-white/5 pb-2">Melhores Atiradores</span>
+                            <div className="space-y-2">
+                                {teamRosterData[team.name]?.slice(0, 3).map((p, i) => (
+                                    <div key={i} className="flex justify-between items-center text-[11px] font-bold uppercase italic">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-gray-400 truncate max-w-[80px]">{p.name}</span>
+                                            <span className="text-[8px] text-gray-600">({p.matches}j)</span>
+                                        </div>
+                                        <span className="text-red-500 font-black">{p.kills}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <MiniBadge label="Vitórias" value={team.b} color="text-yellow-500" />
+                            <MiniBadge label="Avg Kills" value={team.avgAbts} color="text-gray-400" />
+                        </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-center">
+                        <div className="text-[10px] font-black text-yellow-500/50 uppercase tracking-widest group-hover:text-yellow-500 transition-colors">Detalhes da Equipe →</div>
                     </div>
                 </div>
             ))}
@@ -353,29 +340,17 @@ const Teams: React.FC<TeamsProps> = ({ data }) => {
   );
 };
 
-// --- Helpers ---
-
-const Badge = ({ label, value, color, icon }: any) => (
-    <div className={`px-4 py-2 rounded-lg ${color} text-white shadow-lg flex items-center gap-2 font-bold`}>
-        {icon}
-        <div>
-            <span className="block text-[10px] opacity-80 uppercase tracking-wider">{label}</span>
-            <span className="block text-xl font-black leading-none">{value}</span>
-        </div>
+const StatBadge = ({ label, value, color }: any) => (
+    <div className="bg-black/60 px-5 py-3 rounded-2xl border border-white/5 text-center min-w-[100px]">
+        <span className="block text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">{label}</span>
+        <span className={`block text-2xl font-black ${color} italic`}>{value}</span>
     </div>
 );
 
-const StatRow = ({ label, value, color }: any) => (
-    <div className="flex justify-between items-center bg-[#0f0f0f] p-2 rounded-lg border border-gray-800">
-        <span className="text-xs text-gray-500 uppercase font-bold tracking-wide">{label}</span>
-        <span className={`text-lg font-black ${color}`}>{value}</span>
-    </div>
-);
-
-const MiniStat = ({ label, value }: any) => (
-    <div>
-        <div className="text-[9px] text-gray-600 uppercase font-bold">{label}</div>
-        <div className="text-sm font-bold text-gray-300 font-mono">{value}</div>
+const MiniBadge = ({ label, value, color }: any) => (
+    <div className="bg-black/20 p-2 rounded-xl border border-white/5 flex flex-col items-center">
+        <span className="text-[8px] text-gray-600 font-black uppercase tracking-tighter">{label}</span>
+        <span className={`text-sm font-black ${color}`}>{value}</span>
     </div>
 );
 
