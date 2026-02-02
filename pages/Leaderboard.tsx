@@ -1,5 +1,5 @@
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardData, TeamStats } from '../types';
 import { calculateTeamStats } from '../services/dataService';
@@ -8,14 +8,23 @@ import FilterBar from '../components/FilterBar';
 
 interface LeaderboardProps {
   data: DashboardData;
-  globalFilters: any;
-  setGlobalFilters: any;
 }
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ data, globalFilters, setGlobalFilters }) => {
+const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
   const navigate = useNavigate();
-  const [stats, setStats] = React.useState<TeamStats[]>([]);
-  const [phase, setPhase] = React.useState<'ALL' | 'QUALIFIERS' | 'FINALS'>('ALL');
+  const [stats, setStats] = useState<TeamStats[]>([]);
+  const [phase, setPhase] = useState<'ALL' | 'QUALIFIERS' | 'FINALS'>('ALL');
+  
+  const [filters, setFilters] = useState({
+    team: 'All',
+    players: [] as string[],
+    weapon: 'All',
+    safe: 'All',
+    map: 'All',
+    rodada: 'All',
+    queda: 'All',
+    confrontation: 'All'
+  });
 
   const filterOptions = useMemo(() => ({
     teams: Array.from(new Set(data.details.map(d => d.TIME))).filter(Boolean).sort(),
@@ -33,10 +42,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, globalFilters, setGloba
   useEffect(() => {
     if (!data.loading) {
       const filteredDetails = data.details.filter(d => {
-        if (globalFilters.team !== 'All' && d.TIME !== globalFilters.team) return false;
-        if (globalFilters.map !== 'All' && normalize(d.MAPA) !== normalize(globalFilters.map)) return false;
-        if (globalFilters.rodada !== 'All' && normalize(d.RD) !== normalize(globalFilters.rodada)) return false;
-        if (globalFilters.confrontation !== 'All' && d.CONFRONTO !== globalFilters.confrontation) return false;
+        if (filters.team !== 'All' && d.TIME !== filters.team) return false;
+        if (filters.map !== 'All' && normalize(d.MAPA) !== normalize(filters.map)) return false;
+        if (filters.rodada !== 'All' && normalize(d.RD) !== normalize(filters.rodada)) return false;
+        if (filters.confrontation !== 'All' && d.CONFRONTO !== filters.confrontation) return false;
 
         const roundNum = parseInt(d.RD.replace(/\D/g, '')) || 0;
         if (phase === 'QUALIFIERS' && (roundNum < 1 || roundNum > 6)) return false;
@@ -48,7 +57,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, globalFilters, setGloba
       const filteredData = { ...data, details: filteredDetails };
       setStats(calculateTeamStats(filteredData));
     }
-  }, [data, globalFilters, phase]);
+  }, [data, filters, phase]);
 
   const handleTeamClick = (teamName: string) => {
       navigate('/teams', { state: { team: teamName } });
@@ -104,7 +113,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data, globalFilters, setGloba
           </div>
       </div>
 
-      <FilterBar filters={globalFilters} setFilters={setGlobalFilters} options={filterOptions} />
+      <FilterBar filters={filters} setFilters={setFilters} options={filterOptions} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Top3Card title="Top 3 Booyahs" icon={<Trophy size={24} />} teams={topBooyahs} metricKey="b" metricLabel="Vitórias" colorClass="text-yellow-500" />

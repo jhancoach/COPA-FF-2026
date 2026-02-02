@@ -8,23 +8,31 @@ import FilterBar from '../components/FilterBar';
 
 interface PlayersProps {
   data: DashboardData;
-  globalFilters: any;
-  setGlobalFilters: any;
 }
 
-const Players: React.FC<PlayersProps> = ({ data, globalFilters, setGlobalFilters }) => {
+const Players: React.FC<PlayersProps> = ({ data }) => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<'ranking' | 'chars' | 'report' | 'compare' | 'auditoria'>('ranking');
+  
+  const [filters, setFilters] = useState({
+    team: 'All',
+    players: [] as string[],
+    weapon: 'All',
+    safe: 'All',
+    map: 'All',
+    rodada: 'All',
+    queda: 'All',
+    confrontation: 'All'
+  });
 
-  // Detecta navegação externa (clique em jogador em outra página)
   useEffect(() => {
     if (location.state?.player) {
-      setGlobalFilters((prev: any) => ({ ...prev, players: [location.state.player] }));
+      setFilters(prev => ({ ...prev, players: [location.state.player] }));
       setActiveTab('report');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, setGlobalFilters]);
+  }, [location.state]);
 
   const [compareA, setCompareA] = useState<string>('');
   const [compareB, setCompareB] = useState<string>('');
@@ -63,27 +71,27 @@ const Players: React.FC<PlayersProps> = ({ data, globalFilters, setGlobalFilters
 
   const auditData = useMemo(() => {
     if (activeTab !== 'auditoria') return [];
-    const filterMap = normalize(globalFilters.map);
-    const filterRd = normalize(globalFilters.rodada);
-    const filterQ = normalize(globalFilters.queda);
+    const filterMap = normalize(filters.map);
+    const filterRd = normalize(filters.rodada);
+    const filterQ = normalize(filters.queda);
 
     const filteredA = data.players.filter(p => {
-      if (globalFilters.team !== 'All' && p.TIME !== globalFilters.team) return false;
-      if (globalFilters.players.length > 0 && !globalFilters.players.includes(p.PLAYER)) return false;
-      if (globalFilters.map !== 'All' && normalize(p.MAPA) !== filterMap) return false;
-      if (globalFilters.rodada !== 'All' && normalize(p.RD) !== filterRd) return false;
-      if (globalFilters.queda !== 'All' && normalize(p.Q) !== filterQ) return false;
+      if (filters.team !== 'All' && p.TIME !== filters.team) return false;
+      if (filters.players.length > 0 && !filters.players.includes(p.PLAYER)) return false;
+      if (filters.map !== 'All' && normalize(p.MAPA) !== filterMap) return false;
+      if (filters.rodada !== 'All' && normalize(p.RD) !== filterRd) return false;
+      if (filters.queda !== 'All' && normalize(p.Q) !== filterQ) return false;
       return true;
     });
 
     const filteredB = data.killFeed.filter(k => {
-      if (globalFilters.map !== 'All' && normalize(k.MAPA) !== filterMap) return false;
-      if (globalFilters.rodada !== 'All' && normalize(k.RD) !== filterRd) return false;
-      if (globalFilters.queda !== 'All' && normalize(k.Q) !== filterQ) return false;
-      if (globalFilters.players.length > 0 && !globalFilters.players.includes(k.PLAYER)) return false;
-      if (globalFilters.team !== 'All') {
+      if (filters.map !== 'All' && normalize(k.MAPA) !== filterMap) return false;
+      if (filters.rodada !== 'All' && normalize(k.RD) !== filterRd) return false;
+      if (filters.queda !== 'All' && normalize(k.Q) !== filterQ) return false;
+      if (filters.players.length > 0 && !filters.players.includes(k.PLAYER)) return false;
+      if (filters.team !== 'All') {
           const team = playerToTeamMap.get(normalize(k.PLAYER));
-          if (team !== globalFilters.team) return false;
+          if (team !== filters.team) return false;
       }
       return true;
     });
@@ -113,20 +121,20 @@ const Players: React.FC<PlayersProps> = ({ data, globalFilters, setGlobalFilters
       killsA: statsA[name]?.kills || 0,
       killsB: statsB[name] || 0
     })).sort((a, b) => b.killsA - a.killsA);
-  }, [data.players, data.killFeed, globalFilters, activeTab, playerToTeamMap]);
+  }, [data.players, data.killFeed, filters, activeTab, playerToTeamMap]);
 
   const rankingData = useMemo(() => {
     if (activeTab !== 'ranking') return [];
-    const filterMap = normalize(globalFilters.map);
-    const filterRd = normalize(globalFilters.rodada);
-    const filterQ = normalize(globalFilters.queda);
+    const filterMap = normalize(filters.map);
+    const filterRd = normalize(filters.rodada);
+    const filterQ = normalize(filters.queda);
 
     const filtered = data.players.filter(p => {
-        if (globalFilters.team !== 'All' && p.TIME !== globalFilters.team) return false;
-        if (globalFilters.players.length > 0 && !globalFilters.players.includes(p.PLAYER)) return false;
-        if (globalFilters.map !== 'All' && normalize(p.MAPA) !== filterMap) return false;
-        if (globalFilters.rodada !== 'All' && normalize(p.RD) !== filterRd) return false;
-        if (globalFilters.queda !== 'All' && normalize(p.Q) !== filterQ) return false;
+        if (filters.team !== 'All' && p.TIME !== filters.team) return false;
+        if (filters.players.length > 0 && !filters.players.includes(p.PLAYER)) return false;
+        if (filters.map !== 'All' && normalize(p.MAPA) !== filterMap) return false;
+        if (filters.rodada !== 'All' && normalize(p.RD) !== filterRd) return false;
+        if (filters.queda !== 'All' && normalize(p.Q) !== filterQ) return false;
         return true;
     });
 
@@ -151,24 +159,24 @@ const Players: React.FC<PlayersProps> = ({ data, globalFilters, setGlobalFilters
         matches: stat.matches,
         avg: stat.matches > 0 ? (stat.kills / stat.matches).toFixed(2) : '0.00'
     })).sort((a, b) => b.kills - a.kills);
-  }, [data.players, globalFilters, activeTab]);
+  }, [data.players, filters, activeTab]);
 
   const handlePlayerClick = (playerName: string) => {
-      setGlobalFilters((prev: any) => ({ ...prev, players: [playerName] }));
+      setFilters(prev => ({ ...prev, players: [playerName] }));
       setActiveTab('report');
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const charactersData = useMemo(() => {
     if (activeTab !== 'chars') return [];
-    const filterMap = normalize(globalFilters.map);
-    const filterRd = normalize(globalFilters.rodada);
+    const filterMap = normalize(filters.map);
+    const filterRd = normalize(filters.rodada);
 
     return data.characters.filter(c => {
-        if (globalFilters.team !== 'All' && c.Time !== globalFilters.team) return false;
-        if (globalFilters.players.length > 0 && !globalFilters.players.includes(c.Player)) return false;
-        if (globalFilters.map !== 'All' && normalize(c.Mapa) !== filterMap) return false;
-        if (globalFilters.rodada !== 'All' && normalize(c.Rd) !== filterRd) return false;
+        if (filters.team !== 'All' && c.Time !== filters.team) return false;
+        if (filters.players.length > 0 && !filters.players.includes(c.Player)) return false;
+        if (filters.map !== 'All' && normalize(c.Mapa) !== filterMap) return false;
+        if (filters.rodada !== 'All' && normalize(c.Rd) !== filterRd) return false;
         return true;
     }).map(c => {
          const findDim = (dims: any[], name: string) => {
@@ -187,7 +195,7 @@ const Players: React.FC<PlayersProps> = ({ data, globalFilters, setGlobalFilters
              teamImg: data.teamsReference.find(t => t.TIME === c.Time)?.IMG
          };
     });
-  }, [data.characters, globalFilters, data.hab1, data.hab2, data.hab3, data.hab4, data.pets, data.items, activeTab, data.teamsReference]);
+  }, [data.characters, filters, data.hab1, data.hab2, data.hab3, data.hab4, data.pets, data.items, activeTab, data.teamsReference]);
 
   return (
     <div className="space-y-6">
@@ -212,7 +220,7 @@ const Players: React.FC<PlayersProps> = ({ data, globalFilters, setGlobalFilters
 
       {/* Barra de Filtros */}
       {activeTab !== 'compare' && (
-        <FilterBar filters={globalFilters} setFilters={setGlobalFilters} options={filterOptions} />
+        <FilterBar filters={filters} setFilters={setFilters} options={filterOptions} />
       )}
 
       {/* Conteúdo das Abas */}
@@ -300,12 +308,12 @@ const Players: React.FC<PlayersProps> = ({ data, globalFilters, setGlobalFilters
 
           {activeTab === 'report' && (
               <div className="animate-in fade-in duration-300">
-                  {globalFilters.players.length === 1 ? (
+                  {filters.players.length === 1 ? (
                       <div className="space-y-4">
-                           <button onClick={() => { setGlobalFilters((prev: any) => ({...prev, players: []})); setActiveTab('ranking'); }} className="text-xs text-yellow-500 hover:text-yellow-400 flex items-center gap-1 font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg border border-white/5 transition-colors">
+                           <button onClick={() => { setFilters(prev => ({...prev, players: []})); setActiveTab('ranking'); }} className="text-xs text-yellow-500 hover:text-yellow-400 flex items-center gap-1 font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg border border-white/5 transition-colors">
                                <ArrowLeft size={14}/> Voltar para Ranking
                            </button>
-                           <PlayerProfile data={data} playerName={globalFilters.players[0]} globalFilters={globalFilters} />
+                           <PlayerProfile data={data} playerName={filters.players[0]} filters={filters} />
                       </div>
                   ) : (
                       <div className="bg-[#1a1a1a] rounded-2xl p-24 text-center border border-gray-800 shadow-inner">
@@ -350,14 +358,14 @@ const Players: React.FC<PlayersProps> = ({ data, globalFilters, setGlobalFilters
                           <option value="">Selecione Jogador 1...</option>
                           {filterOptions.players.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
-                      {compareA && <PlayerProfile data={data} playerName={compareA} globalFilters={{...globalFilters, players: [compareA]}} isCompact />}
+                      {compareA && <PlayerProfile data={data} playerName={compareA} filters={{...filters, players: [compareA]}} isCompact />}
                   </div>
                   <div className="space-y-4">
                       <select value={compareB} onChange={e => setCompareB(e.target.value)} className="w-full bg-black text-white p-3 rounded-lg border border-gray-800 font-bold uppercase text-xs">
                           <option value="">Selecione Jogador 2...</option>
                           {filterOptions.players.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
-                      {compareB && <PlayerProfile data={data} playerName={compareB} globalFilters={{...globalFilters, players: [compareB]}} isCompact />}
+                      {compareB && <PlayerProfile data={data} playerName={compareB} filters={{...filters, players: [compareB]}} isCompact />}
                   </div>
               </div>
           )}
@@ -376,17 +384,15 @@ const LoadoutCard = ({ title, name, img, highlight }: any) => (
   </div>
 );
 
-// --- Componente de Perfil Detalhado ---
-const PlayerProfile = ({ data, playerName, globalFilters, isCompact }: { data: DashboardData, playerName: string, globalFilters: any, isCompact?: boolean }) => {
+const PlayerProfile = ({ data, playerName, filters, isCompact }: { data: DashboardData, playerName: string, filters: any, isCompact?: boolean }) => {
     const normalize = (val: string | undefined) => (val || '').trim().toUpperCase();
 
     const stats = useMemo(() => {
-        // Filtragem dos registros do jogador, respeitando os filtros globais (exceto o próprio jogador que é fixo)
         const records = data.players.filter(p => {
             if (normalize(p.PLAYER) !== normalize(playerName)) return false;
-            if (globalFilters.rodada !== 'All' && normalize(p.RD) !== normalize(globalFilters.rodada)) return false;
-            if (globalFilters.map !== 'All' && normalize(p.MAPA) !== normalize(globalFilters.map)) return false;
-            if (globalFilters.queda !== 'All' && normalize(p.Q) !== normalize(globalFilters.queda)) return false;
+            if (filters.rodada !== 'All' && normalize(p.RD) !== normalize(filters.rodada)) return false;
+            if (filters.map !== 'All' && normalize(p.MAPA) !== normalize(filters.map)) return false;
+            if (filters.queda !== 'All' && normalize(p.Q) !== normalize(filters.queda)) return false;
             return true;
         });
 
@@ -395,15 +401,12 @@ const PlayerProfile = ({ data, playerName, globalFilters, isCompact }: { data: D
         const team = records[0]?.TIME || data.players.find(p => normalize(p.PLAYER) === normalize(playerName))?.TIME || 'N/A';
         const teamImg = data.teamsReference.find(t => t.TIME === team)?.IMG;
 
-        // Breakdown por Mapa
         const maps: Record<string, number> = {};
         records.forEach(r => { if (r.MAPA) { maps[r.MAPA] = (maps[r.MAPA] || 0) + (parseInt(r.Abates) || 0); } });
 
-        // Breakdown por Queda (Q)
         const quedas: Record<string, number> = {};
         records.forEach(r => { if (r.Q) { quedas[r.Q] = (quedas[r.Q] || 0) + (parseInt(r.Abates) || 0); } });
 
-        // Histórico por Rodada (RD) - Para o gráfico de evolução
         const historyMap = new Map<string, number>();
         records.forEach(r => {
             if (r.RD) {
@@ -417,11 +420,10 @@ const PlayerProfile = ({ data, playerName, globalFilters, isCompact }: { data: D
         });
 
         return { team, teamImg, kills: totalKills, matches: totalMatches, avg: totalMatches > 0 ? (totalKills / totalMatches).toFixed(2) : '0.00', history, maps, quedas };
-    }, [data.players, data.teamsReference, playerName, globalFilters]);
+    }, [data.players, data.teamsReference, playerName, filters]);
 
     return (
         <div className={`space-y-6 ${isCompact ? 'bg-[#1a1a1a] p-5 rounded-2xl border border-gray-800 shadow-2xl' : ''}`}>
-            {/* Header do Perfil */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-gradient-to-br from-[#2d0a31] to-[#050505] p-8 rounded-3xl border border-white/5 shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-12 opacity-5">
                     <Crown size={200} className="text-yellow-500" />
@@ -448,7 +450,6 @@ const PlayerProfile = ({ data, playerName, globalFilters, isCompact }: { data: D
 
             {!isCompact && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Gráfico de Evolução por Rodada */}
                 <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-xl">
                     <h3 className="text-sm font-black text-white uppercase mb-8 flex items-center gap-3 tracking-widest"><BarChart2 size={18} className="text-yellow-500" /> Evolução por Rodada (RD)</h3>
                     <div className="h-72">
@@ -469,7 +470,6 @@ const PlayerProfile = ({ data, playerName, globalFilters, isCompact }: { data: D
                     </div>
                 </div>
 
-                {/* Estatísticas por Queda e Mapa */}
                 <div className="space-y-6">
                     <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-xl">
                         <h3 className="text-sm font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><MapIcon size={18} className="text-yellow-500" /> Domínio por Mapa</h3>

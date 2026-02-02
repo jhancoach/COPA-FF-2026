@@ -34,18 +34,6 @@ const App: React.FC = () => {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [showSplash, setShowSplash] = useState(true);
 
-  // Filtros Globais para consistência entre abas
-  const [globalFilters, setGlobalFilters] = useState({
-    team: 'All', 
-    players: [] as string[], 
-    weapon: 'All', 
-    safe: 'All', 
-    map: 'All', 
-    rodada: 'All', 
-    queda: 'All', 
-    confrontation: 'All'
-  });
-
   const loadData = useCallback(async () => {
     setConfig(getAppConfig());
     setData(prev => ({ ...prev, loading: true }));
@@ -70,10 +58,10 @@ const App: React.FC = () => {
     <HashRouter>
       <Layout onRefresh={loadData} loading={data.loading} lastUpdated={data.lastUpdated} config={config}>
         <Routes>
-          <Route path="/" element={<Leaderboard data={data} globalFilters={globalFilters} setGlobalFilters={setGlobalFilters} />} />
-          <Route path="/players" element={<Players data={data} globalFilters={globalFilters} setGlobalFilters={setGlobalFilters} />} />
-          <Route path="/teams" element={<Teams data={data} globalFilters={globalFilters} setGlobalFilters={setGlobalFilters} />} />
-          <Route path="/killfeed" element={<KillFeedPage data={data} globalFilters={globalFilters} setGlobalFilters={setGlobalFilters} />} />
+          <Route path="/" element={<Leaderboard data={data} />} />
+          <Route path="/players" element={<Players data={data} />} />
+          <Route path="/teams" element={<Teams data={data} />} />
+          <Route path="/killfeed" element={<KillFeedPage data={data} />} />
           <Route path="/admin" element={<Admin onRefresh={loadData} />} />
         </Routes>
       </Layout>
