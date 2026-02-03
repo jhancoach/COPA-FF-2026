@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { DashboardData, PlayerData, CharacterData } from '../types';
-import { Trophy, Crown, User, Swords, Zap, BarChart2, Scale, Map as MapIcon, Skull, ChevronRight, Sparkles, X, Activity, Info, Crosshair, Shield, ArrowLeft, Disc, Flame, Target, AlertCircle, LayoutGrid, MapPin, Hash, Target as TargetIcon } from 'lucide-react';
+import { Trophy, Crown, User, Swords, Zap, BarChart2, Scale, Map as MapIcon, Skull, ChevronRight, Sparkles, X, Activity, Info, Crosshair, Shield, ArrowLeft, Disc, Flame, Target, AlertCircle, LayoutGrid, MapPin, Hash, Target as TargetIcon, CheckCircle2, AlertTriangle, Search } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, LabelList, Cell, YAxis, CartesianGrid } from 'recharts';
 import FilterBar from '../components/FilterBar';
 
@@ -81,7 +81,7 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
   }, [data.characters, data.hab1, data.hab2, data.hab3, data.hab4, data.pets, data.items]);
 
   const rankingData = useMemo(() => {
-    if (activeTab !== 'ranking') return [];
+    if (activeTab !== 'ranking' && activeTab !== 'auditoria') return [];
 
     const filtered = data.players.filter(p => {
         if (filters.team.length > 0 && !filters.team.includes(p.TIME)) return false;
@@ -111,6 +111,37 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
         loadout: charactersMap.get(normalize(name))
     })).sort((a, b) => b.kills - a.kills);
   }, [data.players, filters, activeTab, charactersMap]);
+
+  const auditData = useMemo(() => {
+    if (activeTab !== 'auditoria') return [];
+
+    // Kills no Feed (Filtrado)
+    const feedFiltered = data.killFeed.filter(k => {
+        if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(k.MAPA))) return false;
+        if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(k.RD))) return false;
+        if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(k.Q))) return false;
+        return true;
+    });
+
+    const feedKillsMap = new Map<string, number>();
+    feedFiltered.forEach(k => {
+        const p = normalize(k.PLAYER);
+        feedKillsMap.set(p, (feedKillsMap.get(p) || 0) + 1);
+    });
+
+    return rankingData.map(p => {
+        const factKills = p.kills;
+        const feedKills = feedKillsMap.get(normalize(p.name)) || 0;
+        const diff = factKills - feedKills;
+        return {
+            ...p,
+            factKills,
+            feedKills,
+            diff,
+            status: diff === 0 ? 'OK' : 'DISCREPÂNCIA'
+        };
+    }).sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff) || b.factKills - a.factKills);
+  }, [rankingData, data.killFeed, filters, activeTab]);
 
   const charactersData = useMemo(() => {
     return data.characters.filter(c => {
@@ -156,6 +187,7 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
         {[
             { id: 'ranking', label: 'Ranking Geral', icon: <Trophy size={18} /> },
             { id: 'chars', label: 'Loadouts', icon: <User size={18} /> },
+            { id: 'auditoria', label: 'Auditoria Kills', icon: <Shield size={18} /> },
             { id: 'report', label: 'Perfil Individual', icon: <BarChart2 size={18} /> },
         ].map(tab => (
             <button 
@@ -213,6 +245,72 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
                     </table>
                 </div>
             </div>
+          )}
+
+          {activeTab === 'auditoria' && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-lg flex flex-col items-center">
+                          <Skull className="text-gray-500 mb-2" size={20} />
+                          <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Kills em Fato</span>
+                          <span className="text-3xl font-black text-white italic">{auditData.reduce((a,b) => a + b.factKills, 0)}</span>
+                      </div>
+                      <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-lg flex flex-col items-center">
+                          <Activity className="text-yellow-500 mb-2" size={20} />
+                          <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Kills em Feed</span>
+                          <span className="text-3xl font-black text-yellow-500 italic">{auditData.reduce((a,b) => a + b.feedKills, 0)}</span>
+                      </div>
+                      <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-lg flex flex-col items-center">
+                          <AlertTriangle className="text-red-500 mb-2" size={20} />
+                          <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Divergência Total</span>
+                          <span className="text-3xl font-black text-red-500 italic">{auditData.reduce((a,b) => a + Math.abs(b.diff), 0)}</span>
+                      </div>
+                  </div>
+
+                  <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left whitespace-nowrap">
+                            <thead className="bg-[#0a0a0a] text-gray-500 text-[10px] uppercase font-bold tracking-widest">
+                                <tr>
+                                    <th className="px-6 py-4">Jogador / Equipe</th>
+                                    <th className="px-6 py-4 text-center">Fato (Consolidado)</th>
+                                    <th className="px-6 py-4 text-center">Feed (Unitário)</th>
+                                    <th className="px-6 py-4 text-center">Diferença</th>
+                                    <th className="px-6 py-4 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-800 text-sm font-medium">
+                                {auditData.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-white/5 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-black text-white uppercase italic">{row.name}</span>
+                                                <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">{row.team}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center font-mono text-gray-300">{row.factKills}</td>
+                                        <td className="px-6 py-4 text-center font-mono text-yellow-500/80">{row.feedKills}</td>
+                                        <td className={`px-6 py-4 text-center font-black ${row.diff !== 0 ? 'text-red-500 scale-110' : 'text-gray-700 opacity-20'}`}>
+                                            {row.diff > 0 ? `+${row.diff}` : row.diff === 0 ? '0' : row.diff}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {row.diff === 0 ? (
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500/10 text-green-500 rounded-full border border-green-500/20 text-[9px] font-black uppercase tracking-widest">
+                                                    <CheckCircle2 size={12}/> OK
+                                                </div>
+                                            ) : (
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-500 rounded-full border border-red-500/20 text-[9px] font-black uppercase tracking-widest">
+                                                    <AlertCircle size={12}/> DISCREPÂNCIA
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                  </div>
+              </div>
           )}
 
           {activeTab === 'chars' && (
