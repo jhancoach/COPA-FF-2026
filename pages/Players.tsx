@@ -16,14 +16,14 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
   const [activeHabFilter, setActiveHabFilter] = useState<string>('All');
   
   const [filters, setFilters] = useState({
-    team: 'All',
+    team: [] as string[],
     players: [] as string[],
-    weapon: 'All',
-    safe: 'All',
-    map: 'All',
-    rodada: 'All',
-    queda: 'All',
-    confrontation: 'All'
+    weapon: [] as string[],
+    safe: [] as string[],
+    map: [] as string[],
+    rodada: [] as string[],
+    queda: [] as string[],
+    confrontation: [] as string[]
   });
 
   useEffect(() => {
@@ -82,16 +82,13 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
 
   const rankingData = useMemo(() => {
     if (activeTab !== 'ranking') return [];
-    const filterMap = normalize(filters.map);
-    const filterRd = normalize(filters.rodada);
-    const filterQ = normalize(filters.queda);
 
     const filtered = data.players.filter(p => {
-        if (filters.team !== 'All' && normalize(p.TIME) !== normalize(filters.team)) return false;
+        if (filters.team.length > 0 && !filters.team.includes(p.TIME)) return false;
         if (filters.players.length > 0 && !filters.players.some(fp => normalize(fp) === normalize(p.PLAYER))) return false;
-        if (filters.map !== 'All' && normalize(p.MAPA) !== filterMap) return false;
-        if (filters.rodada !== 'All' && normalize(p.RD) !== filterRd) return false;
-        if (filters.queda !== 'All' && normalize(p.Q) !== filterQ) return false;
+        if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(p.MAPA))) return false;
+        if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(p.RD))) return false;
+        if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(p.Q))) return false;
         return true;
     });
 
@@ -116,22 +113,13 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
   }, [data.players, filters, activeTab, charactersMap]);
 
   const charactersData = useMemo(() => {
-    const filterMap = normalize(filters.map);
-    const filterRd = normalize(filters.rodada);
-    const filterQ = normalize(filters.queda);
-
     return data.characters.filter(c => {
         if (!c.Player) return false;
-        if (filters.team !== 'All' && normalize(c.Time) !== normalize(filters.team)) return false;
+        if (filters.team.length > 0 && !filters.team.includes(c.Time)) return false;
         if (filters.players.length > 0 && !filters.players.some(fp => normalize(fp) === normalize(c.Player))) return false;
-        
-        const cMapa = normalize(c.Mapa);
-        if (filters.map !== 'All' && cMapa && cMapa !== filterMap) return false;
-        const cRd = normalize(c.Rd);
-        if (filters.rodada !== 'All' && cRd && cRd !== filterRd) return false;
-        
-        const cQueda = normalize(c.Q);
-        if (filters.queda !== 'All' && cQueda && cQueda !== filterQ) return false;
+        if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(c.Mapa))) return false;
+        if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(c.Rd))) return false;
+        if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(c.Q))) return false;
         
         if (activeHabFilter !== 'All' && normalize(c.Hab1) !== normalize(activeHabFilter)) return false;
         return true;
@@ -292,7 +280,7 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
                             </div>
                         )) : (
                             <div className="py-24 text-center text-gray-700 font-black italic uppercase tracking-widest border border-dashed border-gray-800 rounded-3xl">
-                                {data.characters.length === 0 ? "Buscando dados em fPersonagens..." : "Nenhum Loadout filtrado para esta Queda."}
+                                {data.characters.length === 0 ? "Buscando dados em fPersonagens..." : "Nenhum Loadout filtrado para esta seleção."}
                             </div>
                         )}
                     </div>
@@ -311,7 +299,7 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
                   ) : (
                       <div className="bg-[#1a1a1a] rounded-2xl p-24 text-center border border-gray-800 shadow-inner">
                           <User size={64} className="mx-auto text-gray-800 mb-6" />
-                          <h3 className="text-2xl font-black text-gray-400 uppercase italic tracking-tighter">Selecione um jogador no Ranking</h3>
+                          <h3 className="text-2xl font-black text-gray-400 uppercase italic tracking-tighter">Selecione UM jogador no Ranking para ver o Perfil</h3>
                       </div>
                   )}
               </div>
@@ -346,9 +334,10 @@ const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
     const stats = useMemo(() => {
         const records = data.players.filter((p: PlayerData) => {
             if (normalize(p.PLAYER) !== normalize(playerName)) return false;
-            if (filters.rodada !== 'All' && normalize(p.RD) !== normalize(filters.rodada)) return false;
-            if (filters.map !== 'All' && normalize(p.MAPA) !== normalize(filters.map)) return false;
-            if (filters.queda !== 'All' && normalize(p.Q) !== normalize(filters.queda)) return false;
+            // No perfil ignoramos filtros globais apenas se quisermos ver o consolidado histórico do player
+            if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(p.RD))) return false;
+            if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(p.MAPA))) return false;
+            if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(p.Q))) return false;
             return true;
         });
 
@@ -448,7 +437,6 @@ const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Abates por Mapa */}
                 <div className="bg-[#0e0e11] p-6 rounded-3xl border border-gray-800 shadow-xl flex flex-col">
                     <h3 className="text-[11px] font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><MapIcon size={16} className="text-yellow-500" /> PERFORMANCE POR MAPA</h3>
                     <div className="space-y-4 flex-1">
@@ -468,7 +456,6 @@ const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
                     </div>
                 </div>
 
-                {/* Abates por Rodada */}
                 <div className="bg-[#0e0e11] p-6 rounded-3xl border border-gray-800 shadow-xl flex flex-col">
                     <h3 className="text-[11px] font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><Hash size={16} className="text-blue-400" /> ABATES POR RODADA</h3>
                     <div className="space-y-4 flex-1">
@@ -488,7 +475,6 @@ const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
                     </div>
                 </div>
 
-                {/* Abates por Queda (Q) */}
                 <div className="bg-[#0e0e11] p-6 rounded-3xl border border-gray-800 shadow-xl flex flex-col">
                     <h3 className="text-[11px] font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><TargetIcon size={16} className="text-yellow-400" /> ABATES POR QUEDA (Q)</h3>
                     <div className="space-y-4 flex-1">
@@ -508,7 +494,6 @@ const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
                     </div>
                 </div>
 
-                {/* Abates por Safe */}
                 <div className="bg-[#0e0e11] p-6 rounded-3xl border border-gray-800 shadow-xl flex flex-col">
                     <h3 className="text-[11px] font-black text-white uppercase mb-6 flex items-center gap-3 tracking-widest"><Disc size={16} className="text-red-500" /> ABATES POR SAFE</h3>
                     <div className="space-y-4 flex-1">

@@ -16,14 +16,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
   const [phase, setPhase] = useState<'ALL' | 'QUALIFIERS' | 'FINALS'>('ALL');
   
   const [filters, setFilters] = useState({
-    team: 'All',
+    team: [] as string[],
     players: [] as string[],
-    weapon: 'All',
-    safe: 'All',
-    map: 'All',
-    rodada: 'All',
-    queda: 'All',
-    confrontation: 'All'
+    weapon: [] as string[],
+    safe: [] as string[],
+    map: [] as string[],
+    rodada: [] as string[],
+    queda: [] as string[],
+    confrontation: [] as string[]
   });
 
   const filterOptions = useMemo(() => ({
@@ -42,10 +42,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
   useEffect(() => {
     if (!data.loading) {
       const filteredDetails = data.details.filter(d => {
-        if (filters.team !== 'All' && d.TIME !== filters.team) return false;
-        if (filters.map !== 'All' && normalize(d.MAPA) !== normalize(filters.map)) return false;
-        if (filters.rodada !== 'All' && normalize(d.RD) !== normalize(filters.rodada)) return false;
-        if (filters.confrontation !== 'All' && d.CONFRONTO !== filters.confrontation) return false;
+        if (filters.team.length > 0 && !filters.team.includes(d.TIME)) return false;
+        if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(d.MAPA))) return false;
+        if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(d.RD))) return false;
+        if (filters.confrontation.length > 0 && !filters.confrontation.includes(d.CONFRONTO)) return false;
 
         const roundNum = parseInt(d.RD.replace(/\D/g, '')) || 0;
         if (phase === 'QUALIFIERS' && (roundNum < 1 || roundNum > 6)) return false;
@@ -63,7 +63,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
       navigate('/teams', { state: { team: teamName } });
   };
 
-  if (data.loading) return <div className="text-center py-20 text-yellow-500 animate-pulse font-bold">CARREGANDO CLASSIFICAÇÃO...</div>;
+  if (data.loading) return <div className="text-center py-20 text-yellow-500 animate-pulse font-bold uppercase tracking-widest italic">CARREGANDO CLASSIFICAÇÃO...</div>;
 
   const topBooyahs = [...stats].sort((a, b) => b.b - a.b || b.pts - a.pts).slice(0, 3);
   const topPtsc = [...stats].sort((a, b) => b.ptsc - a.ptsc || b.pts - a.pts).slice(0, 3);
