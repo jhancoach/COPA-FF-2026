@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DashboardData } from '../types';
-import { Crosshair, ShieldAlert, Swords, Disc, List, User, FilterX, Shield, History, Clock, MapPin, Target } from 'lucide-react';
+import { Crosshair, ShieldAlert, Swords, Disc, List, User, FilterX, Shield, History, Clock, MapPin, Target, Skull } from 'lucide-react';
 import FilterBar from '../components/FilterBar';
 
 interface KillFeedPageProps {
@@ -55,8 +55,12 @@ const KillFeedPage: React.FC<KillFeedPageProps> = ({ data }) => {
   const filteredFeed = useMemo(() => {
     return data.killFeed.filter(k => {
       if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(k.MAPA))) return false;
-      if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(k.RD))) return false;
-      if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(k.Q))) return false;
+      
+      // FILTRO ESTRITO RD + Q
+      const matchRD = filters.rodada.length === 0 || filters.rodada.some(r => normalize(r) === normalize(k.RD));
+      const matchQ = filters.queda.length === 0 || filters.queda.some(q => normalize(q) === normalize(k.Q));
+      if (!(matchRD && matchQ)) return false;
+
       if (filters.confrontation.length > 0 && !filters.confrontation.includes(k.CONFRONTO)) return false;
       if (filters.weapon.length > 0 && !filters.weapon.includes(k.ARMA)) return false;
       if (filters.safe.length > 0 && !filters.safe.includes(k.SAFE)) return false;
@@ -80,7 +84,8 @@ const KillFeedPage: React.FC<KillFeedPageProps> = ({ data }) => {
     const weaponCounts: Record<string, number> = {};
     const safeCounts: Record<string, number> = {};
     const playerCounts: Record<string, number> = {}; 
-    const teamCounts: Record<string, number> = {};
+    const killerTeamCounts: Record<string, number> = {};
+    const victimTeamCounts: Record<string, number> = {};
 
     filteredFeed.forEach(row => {
         if (row.ARMA && row.ARMA.trim() !== '') {
@@ -89,18 +94,22 @@ const KillFeedPage: React.FC<KillFeedPageProps> = ({ data }) => {
         if (row.SAFE && row.SAFE.trim() !== '') {
             safeCounts[row.SAFE] = (safeCounts[row.SAFE] || 0) + 1;
         }
+        
+        // Jogadores (Contextual à aba)
         const pName = tab === 'kills' ? row.PLAYER : row.VITIMA;
         if (pName && pName.trim() !== '') {
             playerCounts[pName] = (playerCounts[pName] || 0) + 1;
-            
-            const pTeam = playerToTeamMap.get(normalize(pName));
-            if (pTeam) {
-                teamCounts[pTeam] = (teamCounts[pTeam] || 0) + 1;
-            }
         }
+
+        // Times (Calculamos ambos sempre para exibir na aba de Letais)
+        const kTeam = playerToTeamMap.get(normalize(row.PLAYER));
+        if (kTeam) killerTeamCounts[kTeam] = (killerTeamCounts[kTeam] || 0) + 1;
+
+        const vTeam = playerToTeamMap.get(normalize(row.VITIMA));
+        if (vTeam) victimTeamCounts[vTeam] = (victimTeamCounts[vTeam] || 0) + 1;
     });
 
-    return { weaponCounts, safeCounts, playerCounts, teamCounts };
+    return { weaponCounts, safeCounts, playerCounts, killerTeamCounts, victimTeamCounts };
   }, [filteredFeed, tab, playerToTeamMap]);
 
   const getWeaponImg = (name: string) => {
@@ -123,7 +132,8 @@ const KillFeedPage: React.FC<KillFeedPageProps> = ({ data }) => {
   const weaponList = Object.entries(stats.weaponCounts).map(([name, count]) => ({name, count: count as number}));
   const safeList = Object.entries(stats.safeCounts).map(([name, count]) => ({name, count: count as number}));
   const playerList = Object.entries(stats.playerCounts).map(([name, count]) => ({name, count: count as number}));
-  const teamList = Object.entries(stats.teamCounts).map(([name, count]) => ({name, count: count as number}));
+  const killerTeamList = Object.entries(stats.killerTeamCounts).map(([name, count]) => ({name, count: count as number}));
+  const victimTeamList = Object.entries(stats.victimTeamCounts).map(([name, count]) => ({name, count: count as number}));
   const totalEvents = filteredFeed.length;
 
   return (
@@ -151,7 +161,7 @@ const KillFeedPage: React.FC<KillFeedPageProps> = ({ data }) => {
         
         <FilterBar filters={filters} setFilters={setFilters} options={filterOptions} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             <StatGrid 
                 title={tab === 'kills' ? "Arsenal Fatal" : "Armas que mais eliminam"} 
                 items={weaponList} 
@@ -173,14 +183,25 @@ const KillFeedPage: React.FC<KillFeedPageProps> = ({ data }) => {
             />
 
             <RenderList 
-                title={tab === 'kills' ? "Equipes que mais Abatem" : "Equipes que mais Morrem"} 
-                items={teamList} 
+                title={tab === 'kills' ? "Equipes que mais Abatem" : "Equipes Vítimas"} 
+                items={tab === 'kills' ? killerTeamList : victimTeamList} 
                 icon={<Shield size={16} className="text-yellow-500"/>} 
                 totalCount={totalEvents} 
                 getImage={getTeamImg}
                 isTeam
                 onSelect={(name) => handleToggleFilter('team', name)}
                 activeValues={filters.team}
+            />
+
+            {/* NOVA LISTA: Times que mais Morrem (Sempre visível na aba Letais para contexto) */}
+            <RenderList 
+                title={tab === 'kills' ? "Equipes que mais Morrem" : "Equipes que mais Abatem"} 
+                items={tab === 'kills' ? victimTeamList : killerTeamList} 
+                icon={<Skull size={16} className="text-red-500"/>} 
+                totalCount={totalEvents} 
+                getImage={getTeamImg}
+                isTeam
+                isVictimList
             />
 
             <RenderList 
@@ -284,9 +305,9 @@ const KillFeedPage: React.FC<KillFeedPageProps> = ({ data }) => {
   );
 };
 
-const RenderList = ({ title, items, icon, totalCount, getImage, isTeam, onSelect, activeValues = [] }: any) => (
-    <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden flex flex-col h-full shadow-lg transition-all hover:border-yellow-600/30">
-        <div className="p-4 border-b border-gray-800 bg-black"><h3 className="font-black text-white uppercase text-sm tracking-widest flex items-center gap-2">{icon}{title}</h3></div>
+const RenderList = ({ title, items, icon, totalCount, getImage, isTeam, onSelect, activeValues = [], isVictimList }: any) => (
+    <div className={`bg-[#1a1a1a] rounded-xl border ${isVictimList ? 'border-red-500/30' : 'border-gray-800'} overflow-hidden flex flex-col h-full shadow-lg transition-all hover:border-yellow-600/30`}>
+        <div className="p-4 border-b border-gray-800 bg-black"><h3 className={`font-black uppercase text-sm tracking-widest flex items-center gap-2 ${isVictimList ? 'text-red-500' : 'text-white'}`}>{icon}{title}</h3></div>
         <div className="overflow-y-auto max-h-[400px] p-2 space-y-1 custom-scrollbar bg-black/20">
             {items.sort((a:any,b:any) => b.count - a.count).map((item:any, i:number) => {
                 const percent = totalCount ? ((item.count / totalCount) * 100).toFixed(1) : "0.0";
@@ -307,16 +328,16 @@ const RenderList = ({ title, items, icon, totalCount, getImage, isTeam, onSelect
                             </div>
                         )}
                         <div className="flex-1 min-w-0 pr-2">
-                            <span className={`text-sm font-bold truncate block group-hover:text-white uppercase italic ${isActive ? 'text-yellow-400' : isTeam ? 'text-yellow-500/80' : 'text-gray-300'}`}>
+                            <span className={`text-sm font-bold truncate block group-hover:text-white uppercase italic ${isActive ? 'text-yellow-400' : isVictimList ? 'text-red-400' : 'text-gray-300'}`}>
                                 {item.name}
                             </span>
                             <div className="w-full bg-gray-900 h-1 mt-1 rounded-full overflow-hidden border border-gray-800">
-                                <div className={`h-full rounded-full transition-all duration-500 ${isActive ? 'bg-yellow-400' : 'bg-yellow-600/60'}`} style={{ width: `${percent}%` }}></div>
+                                <div className={`h-full rounded-full transition-all duration-500 ${isVictimList ? 'bg-red-600/60' : isActive ? 'bg-yellow-400' : 'bg-yellow-600/60'}`} style={{ width: `${percent}%` }}></div>
                             </div>
                         </div>
                     </div>
                     <div className="text-right flex flex-col items-end pl-2">
-                        <span className={`text-sm font-black px-2 py-0.5 rounded shadow-sm transition-colors ${isActive ? 'bg-white text-black' : 'bg-yellow-500 text-black'}`}>
+                        <span className={`text-sm font-black px-2 py-0.5 rounded shadow-sm transition-colors ${isVictimList ? 'bg-red-500 text-white' : isActive ? 'bg-white text-black' : 'bg-yellow-500 text-black'}`}>
                             {item.count}
                         </span>
                     </div>
