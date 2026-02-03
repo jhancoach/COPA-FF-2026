@@ -38,6 +38,7 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
   const normalize = (val: string | undefined) => (val || '').trim().toUpperCase();
   const cleanKey = (s: string) => s.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
 
+  // Opções de filtro dinâmicas: Se selecionar RD, as opções de Q são apenas daquela RD
   const filterOptions = useMemo(() => {
     const teams = Array.from(new Set(data.players.map(p => p.TIME))).filter(Boolean).sort();
     
@@ -45,26 +46,29 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
         ? data.playersDimension.map(d => d.Name).sort()
         : Array.from(new Set(data.players.map(p => p.PLAYER))).filter(Boolean).sort();
     
-    const maps = Array.from(new Set([...data.players.map(p => p.MAPA), ...data.killFeed.map(k => k.MAPA), ...data.characters.map(c => c.Mapa)])).filter(Boolean).sort();
-    const rounds = Array.from(new Set([...data.players.map(p => p.RD), ...data.killFeed.map(k => k.RD), ...data.characters.map(c => c.Rd)])).filter(Boolean).sort();
-    const quedas = Array.from(new Set([...data.players.map(p => p.Q), ...data.characters.map(c => c.Q)])).filter(Boolean).sort();
+    // Filtramos os dados base para pegar as opções de queda baseadas na rodada selecionada
+    const baseDataForDrops = data.players.filter(p => 
+        filters.rodada.length === 0 || filters.rodada.some(r => normalize(r) === normalize(p.RD))
+    );
+
+    const maps = Array.from(new Set([...data.players.map(p => p.MAPA), ...data.killFeed.map(k => k.MAPA)])).filter(Boolean).sort();
+    const rounds = Array.from(new Set([...data.players.map(p => p.RD), ...data.killFeed.map(k => k.RD)])).filter(Boolean).sort();
+    const quedas = Array.from(new Set(baseDataForDrops.map(p => p.Q))).filter(Boolean).sort();
     const activeHabs = Array.from(new Set(data.characters.map(c => c.Hab1))).filter(Boolean).sort();
 
     return { teams, players, weapons: [], safes: [], maps, rounds, quedas, confrontations: [], activeHabs };
-  }, [data.players, data.killFeed, data.characters, data.playersDimension]);
+  }, [data.players, data.killFeed, data.characters, data.playersDimension, filters.rodada]);
 
   const charactersMap = useMemo(() => {
       const m = new Map<string, any>();
       data.characters.forEach(c => {
           if (!c.Player) return;
           const key = normalize(c.Player);
-          
           const findDimImg = (dims: any[], name: string) => {
              if (!name) return undefined;
              const target = cleanKey(name);
              return dims.find(d => cleanKey(d.Name) === target)?.IMG;
           };
-
           if (!m.has(key)) {
               m.set(key, {
                   ...c,
@@ -80,6 +84,7 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
       return m;
   }, [data.characters, data.hab1, data.hab2, data.hab3, data.hab4, data.pets, data.items]);
 
+  // Ranking com Filtragem Estrita (RD AND Q)
   const rankingData = useMemo(() => {
     if (activeTab !== 'ranking' && activeTab !== 'auditoria') return [];
 
@@ -87,21 +92,23 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
         if (filters.team.length > 0 && !filters.team.includes(p.TIME)) return false;
         if (filters.players.length > 0 && !filters.players.some(fp => normalize(fp) === normalize(p.PLAYER))) return false;
         if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(p.MAPA))) return false;
-        if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(p.RD))) return false;
-        if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(p.Q))) return false;
-        return true;
+        
+        // FILTRO ESTRITO: Se selecionar RD e Q, deve bater os dois simultaneamente no registro
+        const matchRD = filters.rodada.length === 0 || filters.rodada.some(r => normalize(r) === normalize(p.RD));
+        const matchQ = filters.queda.length === 0 || filters.queda.some(q => normalize(q) === normalize(p.Q));
+        
+        return matchRD && matchQ;
     });
 
     const statsMap = new Map<string, { kills: number; matches: number; team: string }>();
     filtered.forEach(p => {
         const kills = parseInt(p.Abates || '0');
-        const matches = 1; 
         if (!statsMap.has(p.PLAYER)) {
-            statsMap.set(p.PLAYER, { kills, matches, team: p.TIME });
+            statsMap.set(p.PLAYER, { kills, matches: 1, team: p.TIME });
         } else {
             const s = statsMap.get(p.PLAYER)!;
             s.kills += kills;
-            s.matches += matches;
+            s.matches += 1;
         }
     });
 
@@ -112,15 +119,18 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
     })).sort((a, b) => b.kills - a.kills);
   }, [data.players, filters, activeTab, charactersMap]);
 
+  // Auditoria de Kills com a mesma Filtragem Estrita
   const auditData = useMemo(() => {
     if (activeTab !== 'auditoria') return [];
 
-    // Kills no Feed (Filtrado)
     const feedFiltered = data.killFeed.filter(k => {
         if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(k.MAPA))) return false;
-        if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(k.RD))) return false;
-        if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(k.Q))) return false;
-        return true;
+        
+        // FILTRO ESTRITO NO FEED: RD AND Q
+        const matchRD = filters.rodada.length === 0 || filters.rodada.some(r => normalize(r) === normalize(k.RD));
+        const matchQ = filters.queda.length === 0 || filters.queda.some(q => normalize(q) === normalize(k.Q));
+        
+        return matchRD && matchQ;
     });
 
     const feedKillsMap = new Map<string, number>();
@@ -149,9 +159,12 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
         if (filters.team.length > 0 && !filters.team.includes(c.Time)) return false;
         if (filters.players.length > 0 && !filters.players.some(fp => normalize(fp) === normalize(c.Player))) return false;
         if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(c.Mapa))) return false;
-        if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(c.Rd))) return false;
-        if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(c.Q))) return false;
         
+        // FILTRO ESTRITO NOS LOADOUTS: RD AND Q
+        const matchRD = filters.rodada.length === 0 || filters.rodada.some(r => normalize(r) === normalize(c.Rd));
+        const matchQ = filters.queda.length === 0 || filters.queda.some(q => normalize(q) === normalize(c.Q));
+        
+        if (!(matchRD && matchQ)) return false;
         if (activeHabFilter !== 'All' && normalize(c.Hab1) !== normalize(activeHabFilter)) return false;
         return true;
     }).map(c => {
@@ -249,6 +262,20 @@ const Players: React.FC<PlayersProps> = ({ data }) => {
 
           {activeTab === 'auditoria' && (
               <div className="space-y-6 animate-in fade-in duration-500">
+                  {/* Banner de Status do Filtro */}
+                  {(filters.rodada.length > 0 || filters.queda.length > 0) && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded-xl flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                              <Info size={16} className="text-yellow-500" />
+                              <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                                  Recorte: {filters.rodada.length > 0 ? filters.rodada.join(', ') : 'Todas Rodadas'} 
+                                  {filters.queda.length > 0 ? ` • Queda ${filters.queda.join(', ')}` : ''}
+                              </span>
+                          </div>
+                          <button onClick={() => setFilters(p => ({...p, rodada: [], queda: []}))} className="text-[9px] font-black text-yellow-500 uppercase hover:underline">Limpar Recorte</button>
+                      </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-[#1a1a1a] p-6 rounded-2xl border border-gray-800 shadow-lg flex flex-col items-center">
                           <Skull className="text-gray-500 mb-2" size={20} />
@@ -432,14 +459,12 @@ const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
     const stats = useMemo(() => {
         const records = data.players.filter((p: PlayerData) => {
             if (normalize(p.PLAYER) !== normalize(playerName)) return false;
-            // No perfil ignoramos filtros globais apenas se quisermos ver o consolidado histórico do player
             if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(p.RD))) return false;
             if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(p.MAPA))) return false;
             if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(p.Q))) return false;
             return true;
         });
 
-        // Abates por Mapa
         const mapKillsMap: Record<string, number> = {};
         records.forEach(r => {
             const m = r.MAPA || 'DESCONHECIDO';
@@ -447,35 +472,28 @@ const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
         });
         const mapKills = Object.entries(mapKillsMap).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count);
 
-        // Abates por Rodada
         const roundKillsMap: Record<string, number> = {};
         records.forEach(r => {
             const rd = r.RD || 'N/A';
             roundKillsMap[rd] = (roundKillsMap[rd] || 0) + (parseInt(r.Abates) || 0);
         });
-        const roundKills = Object.entries(roundKillsMap)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => {
-                const numA = parseInt(a.name.replace(/\D/g, '')) || 0;
-                const numB = parseInt(b.name.replace(/\D/g, '')) || 0;
-                return numA - numB;
-            });
+        const roundKills = Object.entries(roundKillsMap).map(([name, count]) => ({ name, count })).sort((a,b) => {
+            const numA = parseInt(a.name.replace(/\D/g, '')) || 0;
+            const numB = parseInt(b.name.replace(/\D/g, '')) || 0;
+            return numA - numB;
+        });
 
-        // Abates por Queda (Q)
         const dropKillsMap: Record<string, number> = {};
         records.forEach(r => {
             const q = r.Q || 'N/A';
             dropKillsMap[q] = (dropKillsMap[q] || 0) + (parseInt(r.Abates) || 0);
         });
-        const dropKills = Object.entries(dropKillsMap)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => {
-                const numA = parseInt(a.name.replace(/\D/g, '')) || 0;
-                const numB = parseInt(b.name.replace(/\D/g, '')) || 0;
-                return numA - numB;
-            });
+        const dropKills = Object.entries(dropKillsMap).map(([name, count]) => ({ name, count })).sort((a,b) => {
+            const numA = parseInt(a.name.replace(/\D/g, '')) || 0;
+            const numB = parseInt(b.name.replace(/\D/g, '')) || 0;
+            return numA - numB;
+        });
 
-        // Abates por Safe (fKillFeed)
         const playerSafeKillsMap: Record<string, number> = {};
         data.killFeed.filter((k: any) => normalize(k.PLAYER) === normalize(playerName)).forEach((k: any) => {
              const safe = k.SAFE || 'OUT';
@@ -485,7 +503,6 @@ const PlayerProfile = ({ data, playerName, filters, characters }: any) => {
 
         const totalKills = records.reduce((acc: number, r: PlayerData) => acc + (parseInt(r.Abates) || 0), 0);
         const totalMatches = records.length; 
-        
         const team = records[0]?.TIME || data.players.find(p => normalize(p.PLAYER) === normalize(playerName))?.TIME || 'N/A';
         const teamImg = data.teamsReference.find(t => normalize(t.TIME) === normalize(team))?.IMG;
 
