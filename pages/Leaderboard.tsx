@@ -3,7 +3,8 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardData, TeamStats } from '../types';
 import { calculateTeamStats } from '../services/dataService';
-import { Trophy, Crosshair, Crown, Layers, Star } from 'lucide-react';
+// Added Shield to the imported icons from lucide-react
+import { Trophy, Crosshair, Crown, Layers, Star, ChevronRight, Shield } from 'lucide-react';
 import FilterBar from '../components/FilterBar';
 
 interface LeaderboardProps {
@@ -63,6 +64,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
       navigate('/teams', { state: { team: teamName } });
   };
 
+  const leftStats = useMemo(() => stats.slice(0, 12), [stats]);
+  const rightStats = useMemo(() => stats.slice(12, 24), [stats]);
+
   if (data.loading) return <div className="text-center py-20 text-yellow-500 animate-pulse font-bold uppercase tracking-widest italic">CARREGANDO CLASSIFICAÇÃO...</div>;
 
   const topBooyahs = [...stats].sort((a, b) => b.b - a.b || b.pts - a.pts).slice(0, 3);
@@ -103,6 +107,37 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     </div>
   );
 
+  const TableHeader = () => (
+    <thead className="bg-[#0f0f0f] text-gray-400 text-[10px] uppercase font-bold tracking-wider">
+      <tr>
+        <th className="px-3 py-4 text-center">#</th>
+        <th className="px-3 py-4">Equipe</th>
+        <th className="px-3 py-4 text-center bg-yellow-900/10 text-yellow-500 font-black">PTS</th>
+        <th className="px-3 py-4 text-center">ABTS</th>
+        <th className="px-3 py-4 text-center">B</th>
+        <th className="px-3 py-4 text-center">S</th>
+      </tr>
+    </thead>
+  );
+
+  // Added key? to prop type to fix TS error: Property 'key' does not exist on type '{ team: TeamStats; index: number; }'
+  const TableRow = ({ team, index }: { team: TeamStats, index: number, key?: any }) => (
+    <tr 
+      onClick={() => handleTeamClick(team.name)} 
+      className="hover:bg-yellow-900/10 transition-colors group cursor-pointer border-b border-gray-800/50"
+    >
+      <td className="px-3 py-3 text-center font-mono text-[11px] text-gray-500">{index + 1}</td>
+      <td className="px-3 py-3 font-bold text-white flex items-center gap-2">
+        {team.image && <img src={team.image} className="w-7 h-7 object-contain" alt={team.name}/>}
+        <span className="uppercase italic text-[12px] truncate max-w-[100px]">{team.name}</span>
+      </td>
+      <td className="px-3 py-3 text-center font-black text-yellow-500 text-sm bg-yellow-900/5">{team.pts}</td>
+      <td className="px-3 py-3 text-center text-red-400 font-bold text-[11px]">{team.abts}</td>
+      <td className="px-3 py-3 text-center text-yellow-600 font-bold text-[11px]">{team.b}</td>
+      <td className="px-3 py-3 text-center text-gray-400 text-[11px]">{team.s}</td>
+    </tr>
+  );
+
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -121,39 +156,52 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
         <Top3Card title="Top 3 Abates" icon={<Crosshair size={24} />} teams={topAbts} metricKey="abts" metricLabel="Abates" colorClass="text-red-500" />
       </div>
 
-      <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left whitespace-nowrap">
-            <thead className="bg-[#0f0f0f] text-gray-400 text-xs uppercase font-bold tracking-wider">
-              <tr>
-                <th className="px-4 py-4 text-center">#</th>
-                <th className="px-4 py-4">Equipe</th>
-                <th className="px-4 py-4 text-center bg-yellow-900/10 text-yellow-500 font-black">PTS</th>
-                <th className="px-4 py-4 text-center">PTSC</th>
-                <th className="px-4 py-4 text-center">ABTS</th>
-                <th className="px-4 py-4 text-center">B</th>
-                <th className="px-4 py-4 text-center">S</th>
-                <th className="px-4 py-4 text-center">Média Abates</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800 text-sm font-medium">
-              {stats.map((team, index) => (
-                <tr key={team.name} onClick={() => handleTeamClick(team.name)} className="hover:bg-yellow-900/10 transition-colors group cursor-pointer">
-                  <td className="px-4 py-3 text-center font-mono text-gray-500">{index + 1}</td>
-                  <td className="px-4 py-3 font-bold text-white flex items-center gap-3">
-                    {team.image && <img src={team.image} className="w-10 h-10 object-contain" alt={team.name}/>}
-                    <span className="uppercase italic">{team.name}</span>
-                  </td>
-                  <td className="px-4 py-3 text-center font-black text-white text-lg bg-yellow-900/5">{team.pts}</td>
-                  <td className="px-4 py-3 text-center text-orange-300">{team.ptsc}</td>
-                  <td className="px-4 py-3 text-center text-red-400">{team.abts}</td>
-                  <td className="px-4 py-3 text-center text-yellow-500">{team.b}</td>
-                  <td className="px-4 py-3 text-center">{team.s}</td>
-                  <td className="px-4 py-3 text-center">{team.avgAbts}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Tabela Dupla 12x12 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Lado Esquerdo (1-12) */}
+        <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
+          <div className="bg-[#0a0a0a] px-4 py-2 border-b border-gray-800 flex items-center justify-between">
+            <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.2em]">Tier 1 • Top 1-12</span>
+            <Trophy size={14} className="text-yellow-500 opacity-50" />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left whitespace-nowrap">
+              <TableHeader />
+              <tbody className="divide-y divide-gray-800 text-sm font-medium">
+                {leftStats.map((team, index) => (
+                  <TableRow key={team.name} team={team} index={index} />
+                ))}
+                {leftStats.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-gray-600 italic uppercase text-[10px]">Sem dados</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Lado Direito (13-24) */}
+        <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
+          <div className="bg-[#0a0a0a] px-4 py-2 border-b border-gray-800 flex items-center justify-between">
+            <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Tier 2 • Top 13-24</span>
+            <Shield size={14} className="text-gray-600 opacity-50" />
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left whitespace-nowrap">
+              <TableHeader />
+              <tbody className="divide-y divide-gray-800 text-sm font-medium">
+                {rightStats.map((team, index) => (
+                  <TableRow key={team.name} team={team} index={index + 12} />
+                ))}
+                {rightStats.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-gray-600 italic uppercase text-[10px]">Nenhuma equipe nesta faixa</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
