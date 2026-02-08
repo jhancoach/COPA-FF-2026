@@ -3,7 +3,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardData, TeamStats } from '../types';
 import { calculateTeamStats } from '../services/dataService';
-import { Trophy, Crosshair, Crown, Layers, Star, ChevronRight, Shield, CheckCircle2 } from 'lucide-react';
+import { Trophy, Crosshair, Crown, Layers, Star, ChevronRight, Shield, CheckCircle2, TrendingUp, Medal } from 'lucide-react';
 import FilterBar from '../components/FilterBar';
 
 interface LeaderboardProps {
@@ -34,7 +34,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     safes: [],
     maps: Array.from(new Set(data.details.map(d => d.MAPA))).filter(Boolean).sort(),
     rounds: Array.from(new Set(data.details.map(d => d.RD))).filter(Boolean).sort(),
-    quedas: Array.from(new Set(data.details.map(d => d.Q))).filter(Boolean).sort(), // Baseado na coluna Q da fDetalhes
+    quedas: Array.from(new Set(data.details.map(d => d.Q))).filter(Boolean).sort(),
     confrontations: Array.from(new Set(data.details.map(d => d.CONFRONTO))).filter(Boolean).sort(),
   }), [data.details]);
 
@@ -46,7 +46,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
         if (filters.team.length > 0 && !filters.team.includes(d.TIME)) return false;
         if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(d.MAPA))) return false;
         if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(d.RD))) return false;
-        // Filtro Quedas usando a propriedade d.Q que veio da coluna Q
         if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(d.Q))) return false;
         if (filters.confrontation.length > 0 && !filters.confrontation.includes(d.CONFRONTO)) return false;
 
@@ -115,7 +114,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
         <th className="px-3 py-4 text-center">#</th>
         <th className="px-3 py-4">Equipe</th>
         <th className="px-3 py-4 text-center bg-yellow-900/10 text-yellow-500 font-black">PTS</th>
+        <th className="px-3 py-4 text-center text-orange-400/80">PTS/C</th>
+        <th className="px-3 py-4 text-center text-yellow-600/80">M.PTS</th>
         <th className="px-3 py-4 text-center">ABTS</th>
+        <th className="px-3 py-4 text-center text-red-500/80">M.ABTS</th>
         <th className="px-3 py-4 text-center">B</th>
         <th className="px-3 py-4 text-center">S</th>
       </tr>
@@ -123,7 +125,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
   );
 
   const TableRow = ({ team, index }: { team: TeamStats, index: number, key?: React.Key }) => {
-    const isTop6 = index < 6; // Destaque para os Top 6 conforme solicitado (Grive)
+    const isTop6 = index < 6;
     
     return (
       <tr 
@@ -137,18 +139,21 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
         <td className="px-3 py-3 font-bold text-white flex items-center gap-2">
           {team.image && <img src={team.image} className="w-7 h-7 object-contain" alt={team.name}/>}
           <div className="flex flex-col">
-            <span className={`uppercase italic text-[12px] truncate max-w-[100px] ${isTop6 ? 'text-yellow-400' : ''}`}>
+            <span className={`uppercase italic text-[11px] truncate max-w-[90px] ${isTop6 ? 'text-yellow-400' : ''}`}>
                 {team.name}
             </span>
             {isTop6 && (
-                <span className="text-[8px] font-black text-yellow-600 uppercase tracking-widest flex items-center gap-1">
-                    <CheckCircle2 size={8} /> FINALISTA
+                <span className="text-[7px] font-black text-yellow-600 uppercase tracking-widest flex items-center gap-1">
+                    <CheckCircle2 size={7} /> FINALISTA
                 </span>
             )}
           </div>
         </td>
         <td className={`px-3 py-3 text-center font-black text-sm ${isTop6 ? 'text-white bg-yellow-600/20' : 'text-yellow-500 bg-yellow-900/5'}`}>{team.pts}</td>
+        <td className="px-3 py-3 text-center text-orange-400/70 font-bold text-[11px]">{team.ptsc}</td>
+        <td className="px-3 py-3 text-center text-yellow-600/60 font-mono text-[10px]">{team.avgPts}</td>
         <td className="px-3 py-3 text-center text-red-400 font-bold text-[11px]">{team.abts}</td>
+        <td className="px-3 py-3 text-center text-red-600/60 font-mono text-[10px]">{team.avgAbts}</td>
         <td className="px-3 py-3 text-center text-yellow-600 font-bold text-[11px]">{team.b}</td>
         <td className="px-3 py-3 text-center text-gray-400 text-[11px]">{team.s}</td>
       </tr>
@@ -166,7 +171,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
 
           <div className="bg-yellow-500/10 border border-yellow-500/30 px-4 py-2 rounded-xl flex items-center gap-3">
              <Crown size={18} className="text-yellow-500" />
-             <span className="text-[10px] font-black text-white uppercase tracking-widest italic">Grive: Top 6 Garantidos na Grande Final</span>
+             <span className="text-[10px] font-black text-white uppercase tracking-widest italic">Critério: Pontos > Booyahs > Abates</span>
           </div>
       </div>
 
@@ -174,17 +179,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Top3Card title="Top 3 Booyahs" icon={<Trophy size={24} />} teams={topBooyahs} metricKey="b" metricLabel="Vitórias" colorClass="text-yellow-500" />
-        <Top3Card title="Top 3 PTS/C" icon={<Crown size={24} />} teams={topPtsc} metricKey="ptsc" metricLabel="Pts Colocação" colorClass="text-orange-400" />
+        <Top3Card title="Top 3 PTS/C" icon={<Medal size={24} />} teams={topPtsc} metricKey="ptsc" metricLabel="Pts Colocação" colorClass="text-orange-400" />
         <Top3Card title="Top 3 Abates" icon={<Crosshair size={24} />} teams={topAbts} metricKey="abts" metricLabel="Abates" colorClass="text-red-500" />
       </div>
 
-      {/* Tabela Dupla 12x12 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Lado Esquerdo (1-12) */}
         <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
           <div className="bg-[#0a0a0a] px-4 py-2 border-b border-gray-800 flex items-center justify-between">
             <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.2em]">Tier 1 • Top 1-12</span>
-            <Trophy size={14} className="text-yellow-500 opacity-50" />
+            <div className="flex items-center gap-2">
+                <TrendingUp size={12} className="text-yellow-500/50" />
+                <span className="text-[9px] text-gray-600 uppercase font-bold">Resumo Competitivo</span>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left whitespace-nowrap">
@@ -195,7 +201,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
                 ))}
                 {leftStats.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-gray-600 italic uppercase text-[10px]">Sem dados para esta filtragem</td>
+                    <td colSpan={9} className="py-10 text-center text-gray-600 italic uppercase text-[10px]">Sem dados para esta filtragem</td>
                   </tr>
                 )}
               </tbody>
@@ -203,7 +209,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
           </div>
         </div>
 
-        {/* Lado Direito (13-24) */}
         <div className="bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
           <div className="bg-[#0a0a0a] px-4 py-2 border-b border-gray-800 flex items-center justify-between">
             <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Tier 2 • Top 13-24</span>
@@ -218,7 +223,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
                 ))}
                 {rightStats.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-gray-600 italic uppercase text-[10px]">Nenhuma equipe nesta faixa</td>
+                    <td colSpan={9} className="py-10 text-center text-gray-600 italic uppercase text-[10px]">Nenhuma equipe nesta faixa</td>
                   </tr>
                 )}
               </tbody>
