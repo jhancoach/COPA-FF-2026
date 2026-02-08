@@ -3,8 +3,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardData, TeamStats } from '../types';
 import { calculateTeamStats } from '../services/dataService';
-// Added Shield to the imported icons from lucide-react
-import { Trophy, Crosshair, Crown, Layers, Star, ChevronRight, Shield } from 'lucide-react';
+import { Trophy, Crosshair, Crown, Layers, Star, ChevronRight, Shield, CheckCircle2 } from 'lucide-react';
 import FilterBar from '../components/FilterBar';
 
 interface LeaderboardProps {
@@ -27,6 +26,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     confrontation: [] as string[]
   });
 
+  // Filtros baseados estritamente na fDetalhes (data.details)
   const filterOptions = useMemo(() => ({
     teams: Array.from(new Set(data.details.map(d => d.TIME))).filter(Boolean).sort(),
     players: [],
@@ -34,7 +34,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     safes: [],
     maps: Array.from(new Set(data.details.map(d => d.MAPA))).filter(Boolean).sort(),
     rounds: Array.from(new Set(data.details.map(d => d.RD))).filter(Boolean).sort(),
-    quedas: Array.from(new Set(data.details.map(d => d.Q))).filter(Boolean).sort(),
+    quedas: Array.from(new Set(data.details.map(d => d.Q))).filter(Boolean).sort(), // Baseado na coluna fDetalhes
     confrontations: Array.from(new Set(data.details.map(d => d.CONFRONTO))).filter(Boolean).sort(),
   }), [data.details]);
 
@@ -46,6 +46,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
         if (filters.team.length > 0 && !filters.team.includes(d.TIME)) return false;
         if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(d.MAPA))) return false;
         if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(d.RD))) return false;
+        if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(d.Q))) return false;
         if (filters.confrontation.length > 0 && !filters.confrontation.includes(d.CONFRONTO)) return false;
 
         const roundNum = parseInt(d.RD.replace(/\D/g, '')) || 0;
@@ -120,23 +121,40 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     </thead>
   );
 
-  // Added key? to prop type to fix TS error: Property 'key' does not exist on type '{ team: TeamStats; index: number; }'
-  const TableRow = ({ team, index }: { team: TeamStats, index: number, key?: any }) => (
-    <tr 
-      onClick={() => handleTeamClick(team.name)} 
-      className="hover:bg-yellow-900/10 transition-colors group cursor-pointer border-b border-gray-800/50"
-    >
-      <td className="px-3 py-3 text-center font-mono text-[11px] text-gray-500">{index + 1}</td>
-      <td className="px-3 py-3 font-bold text-white flex items-center gap-2">
-        {team.image && <img src={team.image} className="w-7 h-7 object-contain" alt={team.name}/>}
-        <span className="uppercase italic text-[12px] truncate max-w-[100px]">{team.name}</span>
-      </td>
-      <td className="px-3 py-3 text-center font-black text-yellow-500 text-sm bg-yellow-900/5">{team.pts}</td>
-      <td className="px-3 py-3 text-center text-red-400 font-bold text-[11px]">{team.abts}</td>
-      <td className="px-3 py-3 text-center text-yellow-600 font-bold text-[11px]">{team.b}</td>
-      <td className="px-3 py-3 text-center text-gray-400 text-[11px]">{team.s}</td>
-    </tr>
-  );
+  // Fix: Explicitly include 'key' in props type definition to avoid TypeScript errors when passing key to TableRow in a map
+  const TableRow = ({ team, index }: { team: TeamStats, index: number, key?: React.Key }) => {
+    const isTop6 = index < 6; // Destaque para os Top 6 (Avançaram para a Final)
+    
+    return (
+      <tr 
+        key={team.name} 
+        onClick={() => handleTeamClick(team.name)} 
+        className={`hover:bg-yellow-900/10 transition-colors group cursor-pointer border-b border-gray-800/50 ${isTop6 ? 'relative overflow-hidden' : ''}`}
+      >
+        <td className="px-3 py-3 text-center font-mono text-[11px] relative">
+            {isTop6 && <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 shadow-[0_0_10px_#facc15]"></div>}
+            <span className={isTop6 ? 'text-yellow-500 font-black' : 'text-gray-500'}>{index + 1}</span>
+        </td>
+        <td className="px-3 py-3 font-bold text-white flex items-center gap-2">
+          {team.image && <img src={team.image} className="w-7 h-7 object-contain" alt={team.name}/>}
+          <div className="flex flex-col">
+            <span className={`uppercase italic text-[12px] truncate max-w-[100px] ${isTop6 ? 'text-yellow-400' : ''}`}>
+                {team.name}
+            </span>
+            {isTop6 && (
+                <span className="text-[8px] font-black text-yellow-600 uppercase tracking-widest flex items-center gap-1">
+                    <CheckCircle2 size={8} /> FINALISTA
+                </span>
+            )}
+          </div>
+        </td>
+        <td className={`px-3 py-3 text-center font-black text-sm ${isTop6 ? 'text-white bg-yellow-600/20' : 'text-yellow-500 bg-yellow-900/5'}`}>{team.pts}</td>
+        <td className="px-3 py-3 text-center text-red-400 font-bold text-[11px]">{team.abts}</td>
+        <td className="px-3 py-3 text-center text-yellow-600 font-bold text-[11px]">{team.b}</td>
+        <td className="px-3 py-3 text-center text-gray-400 text-[11px]">{team.s}</td>
+      </tr>
+    );
+  };
 
   return (
     <div className="space-y-6 pb-12">
@@ -145,6 +163,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
             <button onClick={() => setPhase('ALL')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${phase === 'ALL' ? 'bg-gray-700 text-white' : 'text-gray-400'}`}><Layers size={14}/> Geral</button>
             <button onClick={() => setPhase('QUALIFIERS')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${phase === 'QUALIFIERS' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}><Crosshair size={14}/> Classificatórias</button>
             <button onClick={() => setPhase('FINALS')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${phase === 'FINALS' ? 'bg-yellow-500 text-black' : 'text-gray-400'}`}><Star size={14}/> Final</button>
+          </div>
+
+          <div className="bg-yellow-500/10 border border-yellow-500/30 px-4 py-2 rounded-xl flex items-center gap-3">
+             <Crown size={18} className="text-yellow-500" />
+             <span className="text-[10px] font-black text-white uppercase tracking-widest">Grive: Top 6 Garantidos na Grande Final</span>
           </div>
       </div>
 
