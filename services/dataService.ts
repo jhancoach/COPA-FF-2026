@@ -154,21 +154,43 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 
 export const calculateTeamStats = (data: DashboardData): TeamStats[] => {
   const teamMap = new Map<string, TeamStats>();
+  const lastMatchTracker = new Map<string, { rd: number, q: number, pos: number }>();
   const teamImages = new Map<string, string>();
+  
   data.teamsReference.forEach(t => { if (t.TIME && t.IMG) teamImages.set(t.TIME, t.IMG); });
 
   data.details.forEach(row => {
     const teamName = row.TIME;
     if (!teamName) return;
+    
     if (!teamMap.has(teamName)) {
-      teamMap.set(teamName, { name: teamName, image: teamImages.get(teamName), s: 0, b: 0, ptsc: 0, abts: 0, pts: 0, avgAbts: 0, avgPts: 0, avgPtsc: 0, percentPos: 0, percentAbts: 0 });
+      teamMap.set(teamName, { 
+        name: teamName, 
+        image: teamImages.get(teamName), 
+        s: 0, b: 0, ptsc: 0, abts: 0, pts: 0, 
+        avgAbts: 0, avgPts: 0, avgPtsc: 0, 
+        percentPos: 0, percentAbts: 0, 
+        lastPos: 99 // Default alto para melhor colocação ser menor valor
+      });
     }
+    
     const stats = teamMap.get(teamName)!;
     stats.pts += parseInt(row.PTS) || 0;
     stats.ptsc += parseInt(row.PTSC) || 0;
     stats.abts += parseInt(row.ABTS) || 0;
     stats.b += parseInt(row.B) || 0;
     stats.s += parseInt(row.S) || 0;
+
+    // Lógica para rastrear a posição na última queda real
+    const currentRD = parseInt(row.RD.replace(/\D/g, '')) || 0;
+    const currentQ = parseInt(row.Q.replace(/\D/g, '')) || 0;
+    const currentPos = parseInt(row.POS) || 99;
+
+    const last = lastMatchTracker.get(teamName);
+    if (!last || (currentRD > last.rd) || (currentRD === last.rd && currentQ > last.q)) {
+        lastMatchTracker.set(teamName, { rd: currentRD, q: currentQ, pos: currentPos });
+        stats.lastPos = currentPos;
+    }
   });
 
   return Array.from(teamMap.values()).map(stats => {
@@ -178,5 +200,17 @@ export const calculateTeamStats = (data: DashboardData): TeamStats[] => {
       stats.avgPtsc = parseFloat((stats.ptsc / stats.s).toFixed(2));
     }
     return stats;
-  }).sort((a, b) => b.pts - a.pts);
+  }).sort((a, b) => {
+    // Critério Principal: Pontos Total
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    
+    // 1º Desempate: Booyahs (Vitórias)
+    if (b.b !== a.b) return b.b - a.b;
+    
+    // 2º Desempate: Abates Total
+    if (b.abts !== a.abts) return b.abts - a.abts;
+    
+    // 3º Desempate: Melhor colocação na última queda (menor posição é melhor)
+    return a.lastPos - b.lastPos;
+  });
 };

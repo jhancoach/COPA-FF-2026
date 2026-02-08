@@ -32,7 +32,7 @@ export interface MatchDetails {
   ABTS: string;
   B: string;
   S: string;
-  Q: string; // Adicionado para suporte ao filtro solicitado
+  Q: string; 
 }
 
 export interface CharacterData {
@@ -109,4 +109,5 @@ export interface TeamStats {
   avgPtsc: number;
   percentPos: number;
   percentAbts: number;
+  lastPos: number; // Armazena a posição na última queda para desempate
 }
