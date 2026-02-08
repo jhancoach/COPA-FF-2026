@@ -34,7 +34,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     safes: [],
     maps: Array.from(new Set(data.details.map(d => d.MAPA))).filter(Boolean).sort(),
     rounds: Array.from(new Set(data.details.map(d => d.RD))).filter(Boolean).sort(),
-    quedas: Array.from(new Set(data.details.map(d => d.Q))).filter(Boolean).sort(), // Baseado na coluna fDetalhes
+    quedas: Array.from(new Set(data.details.map(d => d.Q))).filter(Boolean).sort(), // Baseado na coluna Q da fDetalhes
     confrontations: Array.from(new Set(data.details.map(d => d.CONFRONTO))).filter(Boolean).sort(),
   }), [data.details]);
 
@@ -46,6 +46,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
         if (filters.team.length > 0 && !filters.team.includes(d.TIME)) return false;
         if (filters.map.length > 0 && !filters.map.some(m => normalize(m) === normalize(d.MAPA))) return false;
         if (filters.rodada.length > 0 && !filters.rodada.some(r => normalize(r) === normalize(d.RD))) return false;
+        // Filtro Quedas usando a propriedade d.Q que veio da coluna Q
         if (filters.queda.length > 0 && !filters.queda.some(q => normalize(q) === normalize(d.Q))) return false;
         if (filters.confrontation.length > 0 && !filters.confrontation.includes(d.CONFRONTO)) return false;
 
@@ -121,15 +122,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     </thead>
   );
 
-  // Fix: Explicitly include 'key' in props type definition to avoid TypeScript errors when passing key to TableRow in a map
   const TableRow = ({ team, index }: { team: TeamStats, index: number, key?: React.Key }) => {
-    const isTop6 = index < 6; // Destaque para os Top 6 (Avançaram para a Final)
+    const isTop6 = index < 6; // Destaque para os Top 6 conforme solicitado (Grive)
     
     return (
       <tr 
-        key={team.name} 
         onClick={() => handleTeamClick(team.name)} 
-        className={`hover:bg-yellow-900/10 transition-colors group cursor-pointer border-b border-gray-800/50 ${isTop6 ? 'relative overflow-hidden' : ''}`}
+        className={`hover:bg-yellow-900/10 transition-colors group cursor-pointer border-b border-gray-800/50 ${isTop6 ? 'relative overflow-hidden bg-yellow-500/5' : ''}`}
       >
         <td className="px-3 py-3 text-center font-mono text-[11px] relative">
             {isTop6 && <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500 shadow-[0_0_10px_#facc15]"></div>}
@@ -167,7 +166,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
 
           <div className="bg-yellow-500/10 border border-yellow-500/30 px-4 py-2 rounded-xl flex items-center gap-3">
              <Crown size={18} className="text-yellow-500" />
-             <span className="text-[10px] font-black text-white uppercase tracking-widest">Grive: Top 6 Garantidos na Grande Final</span>
+             <span className="text-[10px] font-black text-white uppercase tracking-widest italic">Grive: Top 6 Garantidos na Grande Final</span>
           </div>
       </div>
 
@@ -196,7 +195,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
                 ))}
                 {leftStats.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-gray-600 italic uppercase text-[10px]">Sem dados</td>
+                    <td colSpan={6} className="py-10 text-center text-gray-600 italic uppercase text-[10px]">Sem dados para esta filtragem</td>
                   </tr>
                 )}
               </tbody>

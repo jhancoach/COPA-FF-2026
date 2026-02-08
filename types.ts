@@ -32,6 +32,7 @@ export interface MatchDetails {
   ABTS: string;
   B: string;
   S: string;
+  Q: string; // Adicionado para suporte ao filtro solicitado
 }
 
 export interface CharacterData {
