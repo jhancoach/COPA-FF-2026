@@ -171,7 +171,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
 
           <div className="bg-yellow-500/10 border border-yellow-500/30 px-4 py-2 rounded-xl flex items-center gap-3">
              <Crown size={18} className="text-yellow-500" />
-             <span className="text-[10px] font-black text-white uppercase tracking-widest italic">Critério: Pontos > Booyahs > Abates</span>
+             <span className="text-[10px] font-black text-white uppercase tracking-widest italic">Critério: Pontos &gt; Booyahs &gt; Abates</span>
           </div>
       </div>
 
