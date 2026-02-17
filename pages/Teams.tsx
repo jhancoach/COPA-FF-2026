@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DashboardData, TeamStats, PlayerData, KillFeed, MatchDetails } from '../types';
 import { calculateTeamStats } from '../services/dataService';
-import { Shield, TrendingUp, Users, ArrowLeft, Target, Award, Crosshair, Map as MapIcon, BarChart3, Star, Disc, Activity, Layers, Zap, ListOrdered, Trophy, ChevronDown, Medal, CheckCircle2 } from 'lucide-react';
+import { Shield, TrendingUp, Users, ArrowLeft, Target, Award, Crosshair, Map as MapIcon, BarChart3, Star, Disc, Activity, Layers, Zap, ListOrdered, Trophy, ChevronDown, Medal, CheckCircle2, Flame } from 'lucide-react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, LabelList, PieChart, Pie, Cell, Legend, CartesianGrid, YAxis } from 'recharts';
 import FilterBar from '../components/FilterBar';
 
@@ -425,6 +425,33 @@ const Teams: React.FC<TeamsProps> = ({ data }) => {
                                         ))}
                                     </div>
                                 </div>
+
+                                {/* MOVIDO: Distribuição por Safe (Posicionamento atualizado conforme solicitado) */}
+                                <div className="bg-[#1a1a1a] p-8 rounded-3xl border border-gray-800 shadow-xl">
+                                    <h3 className="text-white font-black text-sm mb-8 flex items-center gap-3 uppercase tracking-widest">
+                                        <Disc size={20} className="text-red-500"/> DISTRIBUIÇÃO POR SAFE
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                                        {safeStatsData.map((s, i) => {
+                                            const maxSafe = Math.max(...safeStatsData.map(x => x.count)) || 1;
+                                            const percent = ((s.count / maxSafe) * 100);
+                                            return (
+                                                <div key={i} className="space-y-2">
+                                                    <div className="flex justify-between items-center px-1">
+                                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                                            <Disc size={12} className="text-red-600 opacity-50" /> SAFE {s.name}
+                                                        </span>
+                                                        <span className="text-xs font-black text-white italic">{s.count} ABATES</span>
+                                                    </div>
+                                                    <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
+                                                        <div className="h-full bg-gradient-to-r from-red-800 to-red-500 rounded-full" style={{ width: `${percent}%` }}></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {safeStatsData.length === 0 && <div className="col-span-2 py-8 text-center text-[10px] text-gray-700 font-black uppercase italic tracking-widest">Sem logs de abates registrados</div>}
+                                    </div>
+                                </div>
                             </>
                         )}
                     </div>
@@ -536,33 +563,6 @@ const Teams: React.FC<TeamsProps> = ({ data }) => {
                                 {(!teamRosterData[selectedTeamName] || teamRosterData[selectedTeamName].length === 0) && (
                                     <div className="py-8 text-center text-[10px] text-gray-700 font-black uppercase italic tracking-widest">Sem roster registrado</div>
                                 )}
-                            </div>
-                        </div>
-
-                        {/* Abates por Safe */}
-                        <div className="bg-[#1a1a1a] p-8 rounded-3xl border border-gray-800 shadow-xl">
-                            <h3 className="text-white font-black text-sm mb-8 flex items-center gap-3 uppercase tracking-widest">
-                                <Disc size={20} className="text-red-500"/> DISTRIBUIÇÃO POR SAFE
-                            </h3>
-                            <div className="space-y-4">
-                                {safeStatsData.map((s, i) => {
-                                    const maxSafe = Math.max(...safeStatsData.map(x => x.count)) || 1;
-                                    const percent = ((s.count / maxSafe) * 100);
-                                    return (
-                                        <div key={i} className="space-y-2">
-                                            <div className="flex justify-between items-center px-1">
-                                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                                    <Disc size={12} className="text-red-600 opacity-50" /> SAFE {s.name}
-                                                </span>
-                                                <span className="text-xs font-black text-white italic">{s.count} ABATES</span>
-                                            </div>
-                                            <div className="w-full h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
-                                                <div className="h-full bg-gradient-to-r from-red-800 to-red-500 rounded-full" style={{ width: `${percent}%` }}></div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {safeStatsData.length === 0 && <div className="py-8 text-center text-[10px] text-gray-700 font-black uppercase italic tracking-widest">Sem logs de abates registrados</div>}
                             </div>
                         </div>
                     </div>
